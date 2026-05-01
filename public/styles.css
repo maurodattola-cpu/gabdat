@@ -33,6 +33,11 @@ textarea {
   font: inherit;
 }
 
+button,
+select {
+  min-height: 42px;
+}
+
 .shell {
   display: grid;
   grid-template-columns: 280px 1fr;
@@ -175,6 +180,13 @@ textarea {
   margin: 34px 0 18px;
 }
 
+.teacher-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: end;
+}
+
 .section-title h2 {
   margin: 0;
   font-family: "Source Serif 4", serif;
@@ -186,10 +198,36 @@ textarea {
   margin-bottom: 24px;
 }
 
+.teacher-home {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
 .teacher-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
+}
+
+.title-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.square-button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: var(--forest);
+  color: white;
+  cursor: pointer;
+  font-size: 1.45rem;
+  font-weight: 800;
 }
 
 .profile-card span,
@@ -271,7 +309,8 @@ textarea {
 .table,
 .tasks,
 .timeline,
-.notices {
+.notices,
+.report-list {
   display: grid;
   gap: 12px;
 }
@@ -280,7 +319,8 @@ textarea {
 .task,
 .timeline-item,
 .notice,
-.register-item {
+.register-item,
+.report-card-row {
   display: grid;
   gap: 6px;
   padding: 16px;
@@ -346,6 +386,16 @@ textarea {
   gap: 12px;
 }
 
+.compact-form {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.hidden {
+  display: none;
+}
+
 .teacher-form label {
   display: grid;
   gap: 7px;
@@ -376,6 +426,160 @@ textarea {
 }
 
 .notice strong {
+  color: var(--forest);
+}
+
+.class-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.class-tabs button {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.class-tabs button.active {
+  border-color: rgba(23, 75, 58, 0.42);
+  background: rgba(216, 242, 117, 0.34);
+}
+
+.class-tabs span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.date-control {
+  max-width: 170px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+}
+
+.student-table-wrap {
+  overflow-x: auto;
+}
+
+.student-table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+}
+
+.student-table th,
+.student-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.student-table th {
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.student-table td > span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.student-table select,
+.student-table input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--ink);
+}
+
+.row-actions {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dots-button {
+  display: grid;
+  width: 38px;
+  min-height: 38px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.row-menu {
+  position: absolute;
+  right: 0;
+  top: 44px;
+  z-index: 5;
+  display: none;
+  min-width: 150px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 16px 40px rgba(30, 45, 38, 0.18);
+}
+
+.row-menu.open {
+  display: grid;
+}
+
+.row-menu button {
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #b42318;
+  cursor: pointer;
+  font-weight: 800;
+  text-align: left;
+}
+
+.teacher-save {
+  width: 100%;
+  margin-top: 18px;
+  padding: 13px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--forest);
+  color: white;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.save-message {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.subject-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.report-card-row strong {
   color: var(--forest);
 }
 
@@ -417,6 +621,7 @@ textarea {
   .hero,
   .grid,
   .stats,
+  .teacher-home,
   .teacher-grid {
     grid-template-columns: 1fr;
   }
@@ -437,6 +642,15 @@ textarea {
   }
 
   .register-item {
+    grid-template-columns: 1fr;
+  }
+
+  .teacher-title {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .subject-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -12,6 +12,10 @@ let client;
 let db;
 
 const demoData = {
+  classes: [
+    { id: "class-3b-inf", name: "3B Informatica", schoolYear: "2025/2026" },
+    { id: "class-2a-inf", name: "2A Informatica", schoolYear: "2025/2026" }
+  ],
   student: {
     id: "stu-1",
     name: "Gabriele Dattola",
@@ -27,6 +31,7 @@ const demoData = {
     {
       id: "stu-1",
       name: "Gabriele Dattola",
+      classId: "class-3b-inf",
       className: "3B Informatica",
       schoolYear: "2025/2026",
       average: 8.1,
@@ -38,6 +43,7 @@ const demoData = {
     {
       id: "stu-2",
       name: "Luca Ferri",
+      classId: "class-3b-inf",
       className: "3B Informatica",
       schoolYear: "2025/2026",
       average: 7.4,
@@ -49,6 +55,7 @@ const demoData = {
     {
       id: "stu-3",
       name: "Sara Romano",
+      classId: "class-3b-inf",
       className: "3B Informatica",
       schoolYear: "2025/2026",
       average: 8.7,
@@ -86,6 +93,36 @@ const demoData = {
   ],
   notes: [
     { studentId: "stu-1", studentName: "Gabriele Dattola", date: "2026-04-12", teacher: "Prof. Marino", body: "Materiale dimenticato durante la lezione." }
+  ],
+  reportCards: [
+    {
+      studentId: "stu-1",
+      studentName: "Gabriele Dattola",
+      classId: "class-3b-inf",
+      className: "3B Informatica",
+      term: "Secondo quadrimestre",
+      conduct: 8,
+      outcome: "Ammesso",
+      subjects: [
+        { name: "Matematica", grade: 8 },
+        { name: "Informatica", grade: 9 },
+        { name: "Italiano", grade: 7 }
+      ],
+      createdAt: "2026-04-30T10:00:00.000Z"
+    }
+  ],
+  dailyAttendance: [
+    {
+      classId: "class-3b-inf",
+      className: "3B Informatica",
+      date: "2026-05-01",
+      savedAt: "2026-05-01T12:45:00.000Z",
+      rows: [
+        { studentId: "stu-1", studentName: "Gabriele Dattola", status: "Presente", details: "" },
+        { studentId: "stu-2", studentName: "Luca Ferri", status: "Ritardo", details: "Ingresso 08:18" },
+        { studentId: "stu-3", studentName: "Sara Romano", status: "Presente", details: "" }
+      ]
+    }
   ]
 };
 
@@ -120,8 +157,38 @@ async function getCollectionData(collectionName, fallback) {
   return docs.length ? docs : fallback;
 }
 
+const slug = (value) => String(value || "")
+  .trim()
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, "-")
+  .replace(/^-|-$/g, "");
+
+const makeId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+
+function normalizeStudents(students, classes) {
+  return students.map((student) => {
+    const matchingClass = classes.find((item) => item.id === student.classId || item.name === student.className);
+    return {
+      schoolYear: "2025/2026",
+      absences: 0,
+      delays: 0,
+      presences: 0,
+      notes: 0,
+      average: 0,
+      ...student,
+      id: student.id || makeId("stu"),
+      classId: student.classId || matchingClass?.id || slug(student.className || "classe"),
+      className: student.className || matchingClass?.name || "Classe"
+    };
+  });
+}
+
 function getDemoStudent(studentId) {
   return demoData.students.find((student) => student.id === studentId) || demoData.students[0];
+}
+
+function getDemoClass(classId) {
+  return demoData.classes.find((schoolClass) => schoolClass.id === classId) || demoData.classes[0];
 }
 
 function syncMainDemoStudent(student) {
@@ -145,34 +212,109 @@ app.get("/api/status", async (_req, res) => {
 
 app.get("/api/dashboard", async (_req, res) => {
   try {
-    const [students, grades, homework, agenda, notices, attendance, notes] = await Promise.all([
+    const [classes, rawStudents, grades, homework, agenda, notices, attendance, notes, reportCards, dailyAttendance] = await Promise.all([
+      getCollectionData("classes", demoData.classes),
       getCollectionData("students", demoData.students),
       getCollectionData("grades", demoData.grades),
       getCollectionData("homework", demoData.homework),
       getCollectionData("agenda", demoData.agenda),
       getCollectionData("notices", demoData.notices),
       getCollectionData("attendance", demoData.attendance),
-      getCollectionData("notes", demoData.notes)
+      getCollectionData("notes", demoData.notes),
+      getCollectionData("reportCards", demoData.reportCards),
+      getCollectionData("dailyAttendance", demoData.dailyAttendance)
     ]);
+    const students = normalizeStudents(rawStudents, classes);
 
     res.json({
       student: students[0] || demoData.student,
+      classes,
       students,
       grades,
       homework,
       agenda,
       notices,
       attendance,
-      notes
+      notes,
+      reportCards,
+      dailyAttendance
     });
   } catch (error) {
     res.status(500).json({ message: "Errore nel caricamento della dashboard", details: error.message });
   }
 });
 
+app.post("/api/classes", async (req, res) => {
+  try {
+    const { name, schoolYear } = req.body;
+    if (!name) {
+      return res.status(400).json({ message: "Il nome della classe e obbligatorio." });
+    }
+
+    const schoolClass = {
+      id: slug(name) || makeId("class"),
+      name,
+      schoolYear: schoolYear || "2025/2026",
+      createdAt: new Date()
+    };
+    const database = await connectDb();
+
+    if (!database) {
+      demoData.classes.unshift(schoolClass);
+      return res.status(201).json(schoolClass);
+    }
+
+    await database.collection("classes").updateOne({ id: schoolClass.id }, { $set: schoolClass }, { upsert: true });
+    res.status(201).json(schoolClass);
+  } catch (error) {
+    res.status(500).json({ message: "Errore nel salvataggio della classe", details: error.message });
+  }
+});
+
+app.post("/api/students", async (req, res) => {
+  try {
+    const { name, classId, schoolYear } = req.body;
+    if (!name || !classId) {
+      return res.status(400).json({ message: "Nome e classe sono obbligatori." });
+    }
+
+    const database = await connectDb();
+    let schoolClass = getDemoClass(classId);
+
+    if (database) {
+      const dbClass = await database.collection("classes").findOne({ id: classId });
+      schoolClass = dbClass || schoolClass;
+    }
+
+    const student = {
+      id: makeId("stu"),
+      name,
+      classId,
+      className: schoolClass.name,
+      schoolYear: schoolYear || schoolClass.schoolYear || "2025/2026",
+      average: 0,
+      absences: 0,
+      delays: 0,
+      presences: 0,
+      notes: 0,
+      createdAt: new Date()
+    };
+
+    if (!database) {
+      demoData.students.push(student);
+      return res.status(201).json(student);
+    }
+
+    await database.collection("students").insertOne(student);
+    res.status(201).json(student);
+  } catch (error) {
+    res.status(500).json({ message: "Errore nel salvataggio dell'alunno", details: error.message });
+  }
+});
+
 app.post("/api/students/:id", async (req, res) => {
   try {
-    const { name, className, average } = req.body;
+    const { name, classId, className, average } = req.body;
     if (!name || !className) {
       return res.status(400).json({ message: "Nome e classe sono obbligatori." });
     }
@@ -180,6 +322,7 @@ app.post("/api/students/:id", async (req, res) => {
     const database = await connectDb();
     const updates = {
       name,
+      classId,
       className,
       average: Number.parseFloat(average) || 0,
       updatedAt: new Date()
@@ -196,6 +339,38 @@ app.post("/api/students/:id", async (req, res) => {
     res.json({ id: req.params.id, ...updates });
   } catch (error) {
     res.status(500).json({ message: "Errore nell'aggiornamento dell'alunno", details: error.message });
+  }
+});
+
+app.delete("/api/students/:id", async (req, res) => {
+  try {
+    const studentId = req.params.id;
+    const database = await connectDb();
+
+    if (!database) {
+      demoData.students = demoData.students.filter((student) => student.id !== studentId);
+      demoData.attendance = demoData.attendance.filter((item) => item.studentId !== studentId);
+      demoData.notes = demoData.notes.filter((note) => note.studentId !== studentId);
+      demoData.reportCards = demoData.reportCards.filter((card) => card.studentId !== studentId);
+      demoData.dailyAttendance = demoData.dailyAttendance.map((record) => ({
+        ...record,
+        rows: record.rows.filter((row) => row.studentId !== studentId)
+      }));
+      demoData.student = demoData.students[0] || demoData.student;
+      return res.json({ ok: true, removed: studentId });
+    }
+
+    await Promise.all([
+      database.collection("students").deleteOne({ id: studentId }),
+      database.collection("attendance").deleteMany({ studentId }),
+      database.collection("notes").deleteMany({ studentId }),
+      database.collection("reportCards").deleteMany({ studentId }),
+      database.collection("dailyAttendance").updateMany({}, { $pull: { rows: { studentId } } })
+    ]);
+
+    res.json({ ok: true, removed: studentId });
+  } catch (error) {
+    res.status(500).json({ message: "Errore nella rimozione dell'alunno", details: error.message });
   }
 });
 
@@ -247,6 +422,58 @@ app.post("/api/attendance", async (req, res) => {
   }
 });
 
+app.post("/api/daily-attendance", async (req, res) => {
+  try {
+    const { classId, date, rows } = req.body;
+    if (!classId || !date || !Array.isArray(rows)) {
+      return res.status(400).json({ message: "Classe, data e righe del registro sono obbligatorie." });
+    }
+
+    const database = await connectDb();
+    let schoolClass = getDemoClass(classId);
+    let students = demoData.students;
+
+    if (database) {
+      const [dbClass, dbStudents] = await Promise.all([
+        database.collection("classes").findOne({ id: classId }),
+        database.collection("students").find({ classId }).toArray()
+      ]);
+      schoolClass = dbClass || schoolClass;
+      students = dbStudents.length ? dbStudents : students;
+    }
+
+    const normalizedRows = rows.map((row) => {
+      const student = students.find((item) => item.id === row.studentId) || getDemoStudent(row.studentId);
+      return {
+        studentId: row.studentId,
+        studentName: student.name,
+        status: row.status || "Presente",
+        details: row.details || ""
+      };
+    });
+
+    const record = {
+      classId,
+      className: schoolClass.name,
+      date,
+      rows: normalizedRows,
+      savedAt: new Date()
+    };
+
+    if (!database) {
+      demoData.dailyAttendance = demoData.dailyAttendance.filter((item) => !(item.classId === classId && item.date === date));
+      demoData.dailyAttendance.unshift(record);
+      return res.status(201).json(record);
+    }
+
+    await database.collection("dailyAttendance").deleteMany({ classId, date });
+    await database.collection("dailyAttendance").insertOne(record);
+    res.status(201).json(record);
+  } catch (error) {
+    res.status(500).json({ message: "Errore nel salvataggio del registro giornaliero", details: error.message });
+  }
+});
+
 app.post("/api/notes", async (req, res) => {
   try {
     const { studentId, teacher, body, date } = req.body;
@@ -283,6 +510,47 @@ app.post("/api/notes", async (req, res) => {
     res.status(201).json(note);
   } catch (error) {
     res.status(500).json({ message: "Errore nel salvataggio della nota", details: error.message });
+  }
+});
+
+app.post("/api/report-cards", async (req, res) => {
+  try {
+    const { studentId, term, conduct, outcome, subjects } = req.body;
+    if (!studentId || !term || !outcome || !Array.isArray(subjects) || !subjects.length) {
+      return res.status(400).json({ message: "Alunno, periodo, esito e materie sono obbligatori." });
+    }
+
+    const database = await connectDb();
+    let student = getDemoStudent(studentId);
+
+    if (database) {
+      const dbStudent = await database.collection("students").findOne({ id: studentId });
+      student = dbStudent || student;
+    }
+
+    const reportCard = {
+      studentId,
+      studentName: student.name,
+      classId: student.classId,
+      className: student.className,
+      term,
+      conduct: Number.parseFloat(conduct) || 0,
+      outcome,
+      subjects: subjects
+        .filter((subject) => subject.name)
+        .map((subject) => ({ name: subject.name, grade: Number.parseFloat(subject.grade) || 0 })),
+      createdAt: new Date()
+    };
+
+    if (!database) {
+      demoData.reportCards.unshift(reportCard);
+      return res.status(201).json(reportCard);
+    }
+
+    await database.collection("reportCards").insertOne(reportCard);
+    res.status(201).json(reportCard);
+  } catch (error) {
+    res.status(500).json({ message: "Errore nel salvataggio della pagella", details: error.message });
   }
 });
 

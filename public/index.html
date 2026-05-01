@@ -23,6 +23,7 @@
         <nav class="nav" aria-label="Menu principale">
           <a class="active" href="#studenti">Studenti</a>
           <a href="#insegnanti">Insegnanti</a>
+          <a href="#pagelle">Pagelle</a>
           <a href="#voti">Voti</a>
           <a href="#compiti">Compiti</a>
           <a href="#agenda">Agenda</a>
@@ -69,16 +70,58 @@
         </section>
 
         <section class="teacher-area" id="insegnanti">
-          <div class="section-title">
-            <p class="eyebrow">Area insegnanti</p>
-            <h2>Gestione classe</h2>
+          <div class="section-title teacher-title">
+            <div>
+              <p class="eyebrow">Area insegnanti</p>
+              <h2>Home classi</h2>
+            </div>
+            <div class="title-actions">
+              <button class="square-button" type="button" data-open-panel="classCreator" aria-label="Aggiungi classe">+</button>
+              <button class="square-button" type="button" data-open-panel="studentCreator" aria-label="Aggiungi alunno">+</button>
+            </div>
           </div>
 
-          <div class="teacher-grid">
+          <div class="teacher-home">
             <section class="panel">
               <div class="panel-head">
                 <div>
-                  <p class="eyebrow">Alunni</p>
+                  <p class="eyebrow">Scelta classe</p>
+                  <h2>Classi</h2>
+                </div>
+              </div>
+              <div class="class-tabs" id="classTabs"></div>
+              <form class="teacher-form compact-form hidden" id="classCreator">
+                <label>
+                  Nuova classe
+                  <input name="name" placeholder="Esempio: 1A Informatica" required>
+                </label>
+                <label>
+                  Anno scolastico
+                  <input name="schoolYear" placeholder="2025/2026">
+                </label>
+                <button type="submit">Aggiungi classe</button>
+              </form>
+              <form class="teacher-form compact-form hidden" id="studentCreator">
+                <label>
+                  Nome alunno
+                  <input name="name" placeholder="Nome e cognome" required>
+                </label>
+                <label>
+                  Classe
+                  <select name="classId" id="newStudentClassSelect"></select>
+                </label>
+                <label>
+                  Anno scolastico
+                  <input name="schoolYear" placeholder="2025/2026">
+                </label>
+                <button type="submit">Aggiungi alunno</button>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Alunno selezionato</p>
                   <h2>Modifica dati</h2>
                 </div>
               </div>
@@ -93,7 +136,7 @@
                 </label>
                 <label>
                   Classe
-                  <input name="className" placeholder="Classe" required>
+                  <select name="classId" id="editStudentClassSelect"></select>
                 </label>
                 <label>
                   Media
@@ -102,11 +145,103 @@
                 <button type="submit">Salva alunno</button>
               </form>
             </section>
+          </div>
+
+          <div class="teacher-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Registro del giorno</p>
+                  <h2>Tabella alunni</h2>
+                </div>
+                <input class="date-control" id="dailyDate" type="date" aria-label="Data registro">
+              </div>
+              <div class="student-table-wrap">
+                <table class="student-table">
+                  <thead>
+                    <tr>
+                      <th>Alunno</th>
+                      <th>Media</th>
+                      <th>Registro</th>
+                      <th>Dettagli</th>
+                      <th>Azioni</th>
+                    </tr>
+                  </thead>
+                  <tbody id="classStudentsTable"></tbody>
+                </table>
+              </div>
+              <button class="teacher-save" id="saveDailyAttendance" type="button">Salva fine giornata</button>
+              <p class="save-message" id="dailySaveMessage"></p>
+            </section>
+
+            <section class="panel" id="pagelle">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Pagelle</p>
+                  <h2>Crea pagella</h2>
+                </div>
+              </div>
+              <form class="teacher-form" id="reportCardForm">
+                <label>
+                  Alunno
+                  <select name="studentId" id="reportStudentSelect"></select>
+                </label>
+                <label>
+                  Periodo
+                  <select name="term">
+                    <option>Primo quadrimestre</option>
+                    <option>Secondo quadrimestre</option>
+                    <option>Scrutinio finale</option>
+                  </select>
+                </label>
+                <div class="subject-grid">
+                  <label>
+                    Matematica
+                    <input name="Matematica" type="number" min="1" max="10" step="0.5" placeholder="8">
+                  </label>
+                  <label>
+                    Italiano
+                    <input name="Italiano" type="number" min="1" max="10" step="0.5" placeholder="7">
+                  </label>
+                  <label>
+                    Informatica
+                    <input name="Informatica" type="number" min="1" max="10" step="0.5" placeholder="9">
+                  </label>
+                  <label>
+                    Inglese
+                    <input name="Inglese" type="number" min="1" max="10" step="0.5" placeholder="8">
+                  </label>
+                </div>
+                <label>
+                  Condotta
+                  <input name="conduct" type="number" min="1" max="10" step="1" placeholder="8">
+                </label>
+                <label>
+                  Esito
+                  <select name="outcome">
+                    <option>Ammesso</option>
+                    <option>Non ammesso</option>
+                    <option>Sospensione del giudizio</option>
+                  </select>
+                </label>
+                <button type="submit">Salva pagella</button>
+              </form>
+            </section>
 
             <section class="panel">
               <div class="panel-head">
                 <div>
-                  <p class="eyebrow">Registro</p>
+                  <p class="eyebrow">Riepilogo</p>
+                  <h2>Pagelle recenti</h2>
+                </div>
+              </div>
+              <div class="report-list" id="reportCardsList"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Manuale</p>
                   <h2>Presenze e ritardi</h2>
                 </div>
               </div>
