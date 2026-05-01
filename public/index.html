@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gabdat MyClass</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Serif+4:opsz,wght@8..60,500;8..60,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <a class="brand" href="/" aria-label="Gabdat MyClass home">
+          <span class="brand-mark">G</span>
+          <span>
+            <strong>Gabdat</strong>
+            <small>MyClass</small>
+          </span>
+        </a>
+
+        <nav class="nav" aria-label="Menu principale">
+          <a class="active" href="#studenti">Studenti</a>
+          <a href="#insegnanti">Insegnanti</a>
+          <a href="#voti">Voti</a>
+          <a href="#compiti">Compiti</a>
+          <a href="#agenda">Agenda</a>
+          <a href="#bacheca">Bacheca</a>
+        </nav>
+
+        <div class="mini-card">
+          <span id="dbMode">Connessione...</span>
+          <strong id="dbStatus">Verifica database</strong>
+        </div>
+      </aside>
+
+      <main class="content">
+        <section class="hero" id="studenti">
+          <div>
+            <p class="eyebrow">Registro digitale</p>
+            <h1>Ciao, <span id="studentName">studente</span>.</h1>
+            <p class="hero-copy">Area studenti per controllare voti, compiti, lezioni, avvisi e situazione del registro.</p>
+          </div>
+          <div class="profile-card">
+            <span>Anno scolastico</span>
+            <strong id="schoolYear">--</strong>
+            <small id="className">Classe --</small>
+          </div>
+        </section>
+
+        <section class="stats" aria-label="Riepilogo">
+          <article>
+            <span>Media</span>
+            <strong id="average">--</strong>
+          </article>
+          <article>
+            <span>Assenze</span>
+            <strong id="absences">--</strong>
+          </article>
+          <article>
+            <span>Ritardi</span>
+            <strong id="delays">--</strong>
+          </article>
+          <article>
+            <span>Note</span>
+            <strong id="notesCount">--</strong>
+          </article>
+        </section>
+
+        <section class="teacher-area" id="insegnanti">
+          <div class="section-title">
+            <p class="eyebrow">Area insegnanti</p>
+            <h2>Gestione classe</h2>
+          </div>
+
+          <div class="teacher-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Alunni</p>
+                  <h2>Modifica dati</h2>
+                </div>
+              </div>
+              <form class="teacher-form" id="studentForm">
+                <label>
+                  Alunno
+                  <select name="studentId" id="studentSelect"></select>
+                </label>
+                <label>
+                  Nome e cognome
+                  <input name="name" placeholder="Nome alunno" required>
+                </label>
+                <label>
+                  Classe
+                  <input name="className" placeholder="Classe" required>
+                </label>
+                <label>
+                  Media
+                  <input name="average" type="number" min="1" max="10" step="0.1" placeholder="8.0" required>
+                </label>
+                <button type="submit">Salva alunno</button>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Registro</p>
+                  <h2>Presenze e ritardi</h2>
+                </div>
+              </div>
+              <form class="teacher-form" id="attendanceForm">
+                <label>
+                  Alunno
+                  <select name="studentId" id="attendanceStudentSelect"></select>
+                </label>
+                <label>
+                  Tipo
+                  <select name="type">
+                    <option>Presenza</option>
+                    <option>Assenza</option>
+                    <option>Ritardo</option>
+                    <option>Uscita anticipata</option>
+                  </select>
+                </label>
+                <label>
+                  Data
+                  <input name="date" type="date" required>
+                </label>
+                <label>
+                  Dettagli
+                  <input name="details" placeholder="Esempio: ingresso alle 08:20">
+                </label>
+                <button type="submit">Aggiungi al registro</button>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Disciplina</p>
+                  <h2>Note</h2>
+                </div>
+              </div>
+              <form class="teacher-form" id="noteForm">
+                <label>
+                  Alunno
+                  <select name="studentId" id="noteStudentSelect"></select>
+                </label>
+                <label>
+                  Docente
+                  <input name="teacher" placeholder="Prof. Rossi" required>
+                </label>
+                <label>
+                  Data
+                  <input name="date" type="date" required>
+                </label>
+                <label>
+                  Nota
+                  <textarea name="body" rows="4" placeholder="Scrivi la nota" required></textarea>
+                </label>
+                <button type="submit">Inserisci nota</button>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Riepilogo</p>
+                  <h2>Registro recente</h2>
+                </div>
+              </div>
+              <div class="register-list" id="teacherRegisterList"></div>
+            </section>
+          </div>
+        </section>
+
+        <div class="grid">
+          <section class="panel large" id="voti">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Andamento</p>
+                <h2>Ultimi voti</h2>
+              </div>
+              <button class="ghost-button" type="button">Esporta</button>
+            </div>
+            <div class="table" id="gradesList"></div>
+          </section>
+
+          <section class="panel" id="agenda">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Oggi</p>
+                <h2>Agenda</h2>
+              </div>
+            </div>
+            <div class="timeline" id="agendaList"></div>
+          </section>
+
+          <section class="panel" id="compiti">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Da fare</p>
+                <h2>Compiti</h2>
+              </div>
+            </div>
+            <form class="homework-form" id="homeworkForm">
+              <input name="subject" placeholder="Materia" required>
+              <input name="title" placeholder="Compito" required>
+              <input name="dueDate" type="date" required>
+              <button type="submit">Aggiungi</button>
+            </form>
+            <div class="tasks" id="homeworkList"></div>
+          </section>
+
+          <section class="panel" id="bacheca">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Comunicazioni</p>
+                <h2>Bacheca</h2>
+              </div>
+            </div>
+            <div class="notices" id="noticesList"></div>
+          </section>
+
+          <section class="panel" id="note">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Registro</p>
+                <h2>Note studente</h2>
+              </div>
+            </div>
+            <div class="notices" id="notesList"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
