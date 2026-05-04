@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Gabdat MyClass</title>
+    <title>Web Preview</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Serif+4:opsz,wght@8..60,500;8..60,700&display=swap" rel="stylesheet">
@@ -12,22 +12,17 @@
   <body>
     <div class="shell">
       <aside class="sidebar">
-        <a class="brand" href="/" aria-label="Gabdat MyClass home">
-          <span class="brand-mark">G</span>
+        <a class="brand" href="/" aria-label="Web Preview home">
+          <span class="brand-mark">W</span>
           <span>
-            <strong>Gabdat</strong>
-            <small>MyClass</small>
+            <strong>Web</strong>
+            <small>Preview</small>
           </span>
         </a>
 
         <nav class="nav" aria-label="Menu principale">
-          <a class="active" href="#studenti">Studenti</a>
-          <a href="#insegnanti">Insegnanti</a>
-          <a href="#pagelle">Pagelle</a>
-          <a href="#voti">Voti</a>
-          <a href="#compiti">Compiti</a>
-          <a href="#agenda">Agenda</a>
-          <a href="#bacheca">Bacheca</a>
+          <a class="active" href="/studenti">Studenti</a>
+          <a href="/insegnanti">Insegnanti</a>
         </nav>
 
         <div class="mini-card">
@@ -37,39 +32,136 @@
       </aside>
 
       <main class="content">
-        <section class="hero" id="studenti">
-          <div>
-            <p class="eyebrow">Registro digitale</p>
-            <h1>Ciao, <span id="studentName">studente</span>.</h1>
-            <p class="hero-copy">Area studenti per controllare voti, compiti, lezioni, avvisi e situazione del registro.</p>
+        <section class="home-view app-view" id="homeView">
+          <div class="home-copy">
+            <p class="eyebrow">Accesso</p>
+            <h1>Web Preview</h1>
+            <p class="hero-copy">Inserisci il tuo username e scegli l'area da aprire.</p>
           </div>
-          <div class="profile-card">
-            <span>Anno scolastico</span>
-            <strong id="schoolYear">--</strong>
-            <small id="className">Classe --</small>
-          </div>
+          <form class="panel login-panel" id="loginForm">
+            <label>
+              Username
+              <input name="username" id="loginUsername" placeholder="Scrivi il tuo username" autocomplete="username" required>
+            </label>
+            <p class="login-error" id="loginError" role="alert"></p>
+            <div class="login-actions">
+              <button type="submit" name="role" value="studenti">Entra studenti</button>
+              <button type="submit" name="role" value="insegnanti">Entra insegnanti</button>
+            </div>
+          </form>
         </section>
 
-        <section class="stats" aria-label="Riepilogo">
-          <article>
-            <span>Media</span>
-            <strong id="average">--</strong>
-          </article>
-          <article>
-            <span>Assenze</span>
-            <strong id="absences">--</strong>
-          </article>
-          <article>
-            <span>Ritardi</span>
-            <strong id="delays">--</strong>
-          </article>
-          <article>
-            <span>Note</span>
-            <strong id="notesCount">--</strong>
-          </article>
-        </section>
+        <div class="app-view" id="studentView">
+          <section class="hero" id="studenti">
+            <div>
+              <p class="eyebrow">Registro digitale</p>
+              <h1>Ciao, <span id="studentName">studente</span>.</h1>
+              <p class="hero-copy">Area studenti per controllare voti, compiti, lezioni, avvisi e situazione del registro.</p>
+            </div>
+            <div class="profile-card">
+              <span>Anno scolastico</span>
+              <strong id="schoolYear">--</strong>
+              <small id="className">Classe --</small>
+            </div>
+          </section>
 
-        <section class="teacher-area" id="insegnanti">
+          <section class="stats" aria-label="Riepilogo">
+            <article>
+              <span>Media</span>
+              <strong id="average">--</strong>
+            </article>
+            <article>
+              <span>Assenze</span>
+              <strong id="absences">--</strong>
+            </article>
+            <article>
+              <span>Ritardi</span>
+              <strong id="delays">--</strong>
+            </article>
+            <article>
+              <span>Note</span>
+              <strong id="notesCount">--</strong>
+            </article>
+          </section>
+
+          <section class="student-alerts hidden" id="noticeAlerts" aria-live="polite"></section>
+          <section class="student-alerts hidden" id="homeworkAlerts" aria-live="polite"></section>
+          <section class="student-alerts hidden" id="classworkAlerts" aria-live="polite"></section>
+          <section class="student-alerts hidden" id="gradeAlerts" aria-live="polite"></section>
+          <section class="student-alerts hidden" id="noteAlerts" aria-live="polite"></section>
+          <section class="student-alerts" id="justificationAlerts" aria-live="polite"></section>
+
+          <section class="panel student-switcher">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Profilo</p>
+                <h2>Cambia studente</h2>
+              </div>
+            </div>
+            <label>
+              Studente
+              <select id="studentViewSelect" aria-label="Scegli studente"></select>
+            </label>
+          </section>
+
+          <section class="panel student-switcher">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Permessi</p>
+                <h2>Programma uscita anticipata</h2>
+              </div>
+            </div>
+            <form class="teacher-form" id="earlyExitForm">
+              <label>
+                Data
+                <input name="date" type="date" required>
+              </label>
+              <label>
+                Ora
+                <input name="time" type="time" required>
+              </label>
+              <label>
+                Motivo
+                <input name="reason" placeholder="Esempio: visita medica" required>
+              </label>
+              <button type="submit">Programma uscita</button>
+            </form>
+          </section>
+
+          <section class="panel student-switcher">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Giustificazioni</p>
+                <h2>Giustifica assenza, ritardo o uscita</h2>
+              </div>
+            </div>
+            <form class="teacher-form" id="justificationForm">
+              <label>
+                Tipo
+                <select name="type">
+                  <option>Assenza</option>
+                  <option>Ritardo</option>
+                  <option>Uscita anticipata</option>
+                </select>
+              </label>
+              <label>
+                Data
+                <input name="date" type="date" required>
+              </label>
+              <label>
+                Ora
+                <input name="time" type="time">
+              </label>
+              <label>
+                Motivo
+                <input name="reason" placeholder="Esempio: motivi familiari" required>
+              </label>
+              <button type="submit">Invia giustificazione</button>
+            </form>
+          </section>
+        </div>
+
+        <section class="teacher-area app-view hidden-view" id="insegnanti">
           <div class="section-title teacher-title">
             <div>
               <p class="eyebrow">Area insegnanti</p>
@@ -100,6 +192,18 @@
                   <input name="schoolYear" placeholder="2025/2026">
                 </label>
                 <button type="submit">Aggiungi classe</button>
+              </form>
+              <form class="teacher-form compact-form hidden" id="classEditor">
+                <input name="classId" type="hidden">
+                <label>
+                  Nome classe
+                  <input name="name" placeholder="Esempio: 3B Informatica" required>
+                </label>
+                <label>
+                  Anno scolastico
+                  <input name="schoolYear" placeholder="2025/2026">
+                </label>
+                <button type="submit">Salva classe</button>
               </form>
               <form class="teacher-form compact-form hidden" id="studentCreator">
                 <label>
@@ -151,10 +255,144 @@
             <section class="panel">
               <div class="panel-head">
                 <div>
+                  <p class="eyebrow">Orario</p>
+                  <h2>Orario classe selezionata</h2>
+                </div>
+                <button class="square-button" type="button" data-open-panel="scheduleForm" aria-label="Aggiungi orario">+</button>
+              </div>
+              <form class="teacher-form compact-form hidden" id="scheduleForm">
+                <input name="scheduleId" type="hidden">
+                <label>
+                  Giorno
+                  <select name="day">
+                    <option>Lunedi</option>
+                    <option>Martedi</option>
+                    <option>Mercoledi</option>
+                    <option>Giovedi</option>
+                    <option>Venerdi</option>
+                    <option>Sabato</option>
+                    <option>Domenica</option>
+                  </select>
+                </label>
+                <label>
+                  Ora inizio
+                  <input name="time" type="time" required>
+                </label>
+                <label>
+                  Ora fine
+                  <input name="endTime" type="time">
+                </label>
+                <label>
+                  Materia
+                  <input name="subject" placeholder="Matematica" required>
+                </label>
+                <label>
+                  Aula
+                  <input name="room" placeholder="Aula 12">
+                </label>
+                <label>
+                  Docente
+                  <input name="teacher" placeholder="Prof. Rossi">
+                </label>
+                <button type="submit">Aggiungi all'orario</button>
+              </form>
+              <div class="timeline" id="teacherScheduleList"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Valutazioni</p>
+                  <h2>Inserisci voto</h2>
+                </div>
+              </div>
+              <form class="teacher-form" id="gradeForm">
+                <input name="gradeId" type="hidden">
+                <label>
+                  Alunno
+                  <select name="studentId" id="gradeStudentSelect"></select>
+                </label>
+                <label>
+                  Materia
+                  <input name="subject" placeholder="Matematica" required>
+                </label>
+                <label>
+                  Voto
+                  <input name="value" type="text" placeholder="8/SV/+/-" required>
+                </label>
+                <label>
+                  Tipo
+                  <select name="type">
+                    <option>Verifica</option>
+                    <option>Interrogazione</option>
+                    <option>Laboratorio</option>
+                    <option>Compito pratico</option>
+                    <option>Correzione quaderno</option>
+                    <option>Altro</option>
+                  </select>
+                </label>
+                <label>
+                  Spiegazione
+                  <textarea name="explanation" rows="3" placeholder="Esempio: ottimo lavoro sui problemi, da ripassare le frazioni"></textarea>
+                </label>
+                <label>
+                  Docente
+                  <input name="teacher" placeholder="Prof. Rossi" required>
+                </label>
+                <label>
+                  Data
+                  <input name="date" type="date" required>
+                </label>
+                <button type="submit">Salva voto</button>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Valutazioni</p>
+                  <h2>Voti recenti</h2>
+                </div>
+              </div>
+              <div class="table" id="teacherGradesList"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Permessi</p>
+                  <h2>Uscite programmate</h2>
+                </div>
+              </div>
+              <div class="notices" id="teacherEarlyExitsList"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Giustificazioni</p>
+                  <h2>Richieste studenti</h2>
+                </div>
+              </div>
+              <div class="notices" id="teacherJustificationsList"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
                   <p class="eyebrow">Registro del giorno</p>
                   <h2>Tabella alunni</h2>
                 </div>
-                <input class="date-control" id="dailyDate" type="date" aria-label="Data registro">
+                <div class="daily-controls">
+                  <input class="date-control" id="dailyDate" type="date" aria-label="Data registro">
+                  <select class="date-control lesson-control" id="dailyLesson" aria-label="Lezione del registro">
+                    <option value="">Lezione</option>
+                  </select>
+                  <select class="date-control saved-day-control" id="savedDailyDate" aria-label="Giornate salvate">
+                    <option value="">Giornate salvate</option>
+                  </select>
+                  <button class="date-control daily-delete-button" id="deleteSavedDay" type="button">Elimina</button>
+                </div>
               </div>
               <div class="student-table-wrap">
                 <table class="student-table">
@@ -170,7 +408,10 @@
                   <tbody id="classStudentsTable"></tbody>
                 </table>
               </div>
-              <button class="teacher-save" id="saveDailyAttendance" type="button">Salva fine giornata</button>
+              <div class="daily-save-actions">
+                <button class="teacher-save secondary-save" id="saveLessonAttendance" type="button">Salva lezione</button>
+                <button class="teacher-save" id="saveDailyAttendance" type="button">Salva giornata</button>
+              </div>
               <p class="save-message" id="dailySaveMessage"></p>
             </section>
 
@@ -194,24 +435,8 @@
                     <option>Scrutinio finale</option>
                   </select>
                 </label>
-                <div class="subject-grid">
-                  <label>
-                    Matematica
-                    <input name="Matematica" type="number" min="1" max="10" step="0.5" placeholder="8">
-                  </label>
-                  <label>
-                    Italiano
-                    <input name="Italiano" type="number" min="1" max="10" step="0.5" placeholder="7">
-                  </label>
-                  <label>
-                    Informatica
-                    <input name="Informatica" type="number" min="1" max="10" step="0.5" placeholder="9">
-                  </label>
-                  <label>
-                    Inglese
-                    <input name="Inglese" type="number" min="1" max="10" step="0.5" placeholder="8">
-                  </label>
-                </div>
+                <div class="subject-grid dynamic-subjects" id="reportSubjects"></div>
+                <button class="ghost-button" id="addReportSubject" type="button">Aggiungi materia</button>
                 <label>
                   Condotta
                   <input name="conduct" type="number" min="1" max="10" step="1" placeholder="8">
@@ -279,13 +504,21 @@
                 </div>
               </div>
               <form class="teacher-form" id="noteForm">
+                <input name="noteId" type="hidden">
                 <label>
-                  Alunno
-                  <select name="studentId" id="noteStudentSelect"></select>
+                  Destinatario / destinatari
+                  <select name="recipient" id="noteRecipientSelect"></select>
                 </label>
                 <label>
                   Docente
                   <input name="teacher" placeholder="Prof. Rossi" required>
+                </label>
+                <label>
+                  Tipo nota
+                  <select name="type">
+                    <option>Note disciplinari</option>
+                    <option>Note di merito</option>
+                  </select>
                 </label>
                 <label>
                   Data
@@ -302,6 +535,110 @@
             <section class="panel">
               <div class="panel-head">
                 <div>
+                  <p class="eyebrow">Disciplina</p>
+                  <h2>Note inserite</h2>
+                </div>
+              </div>
+              <div class="notices notice-admin-list" id="teacherNotesList"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Da fare</p>
+                  <h2>Assegna compiti</h2>
+                </div>
+              </div>
+              <form class="teacher-form" id="homeworkForm">
+                <input name="homeworkId" type="hidden">
+                <label>
+                  Materia
+                  <input name="subject" placeholder="Materia" required>
+                </label>
+                <label>
+                  Compito
+                  <input name="title" placeholder="Compito da assegnare" required>
+                </label>
+                <label>
+                  Scadenza
+                  <input name="dueDate" type="date" required>
+                </label>
+                <label>
+                  File allegato
+                  <input name="attachment" type="file">
+                </label>
+                <button type="submit">Pubblica compito</button>
+              </form>
+              <div class="tasks notice-admin-list" id="teacherHomeworkList"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Lezione</p>
+                  <h2>Svolto in classe</h2>
+                </div>
+              </div>
+              <form class="teacher-form" id="classworkForm">
+                <input name="classworkId" type="hidden">
+                <label>
+                  Materia
+                  <input name="subject" placeholder="Materia" required>
+                </label>
+                <label>
+                  Data
+                  <input name="date" type="date" required>
+                </label>
+                <label>
+                  Docente
+                  <input name="teacher" placeholder="Prof. Rossi">
+                </label>
+                <label>
+                  Cosa e stato svolto
+                  <textarea name="body" rows="4" placeholder="Scrivi gli argomenti svolti in classe" required></textarea>
+                </label>
+                <label>
+                  File allegato
+                  <input name="attachment" type="file">
+                </label>
+                <button type="submit">Pubblica svolto</button>
+              </form>
+              <div class="notices notice-admin-list" id="teacherClassworkList"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Comunicazioni</p>
+                  <h2>Scrivi in bacheca</h2>
+                </div>
+              </div>
+              <form class="teacher-form" id="noticeForm">
+                <input name="noticeId" type="hidden">
+                <label>
+                  Titolo
+                  <input name="title" placeholder="Esempio: Assemblea di classe" required>
+                </label>
+                <label>
+                  Testo
+                  <textarea name="body" rows="4" placeholder="Scrivi la comunicazione" required></textarea>
+                </label>
+                <label>
+                  Priorita
+                  <select name="priority">
+                    <option>Media</option>
+                    <option>Alta</option>
+                    <option>Bassa</option>
+                  </select>
+                </label>
+                <button type="submit">Pubblica comunicazione</button>
+              </form>
+              <div class="notices notice-admin-list" id="teacherNoticesList"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
                   <p class="eyebrow">Riepilogo</p>
                   <h2>Registro recente</h2>
                 </div>
@@ -311,13 +648,14 @@
           </div>
         </section>
 
-        <div class="grid">
+        <div class="grid app-view" id="studentDetailsView">
           <section class="panel large" id="voti">
             <div class="panel-head">
               <div>
                 <p class="eyebrow">Andamento</p>
                 <h2>Ultimi voti</h2>
               </div>
+              <span class="notice-badge hidden" id="gradeBadge">0 nuovi</span>
               <button class="ghost-button" type="button">Esporta</button>
             </div>
             <div class="table" id="gradesList"></div>
@@ -326,8 +664,8 @@
           <section class="panel" id="agenda">
             <div class="panel-head">
               <div>
-                <p class="eyebrow">Oggi</p>
-                <h2>Agenda</h2>
+                <p class="eyebrow">Orario</p>
+                <h2>Lezioni</h2>
               </div>
             </div>
             <div class="timeline" id="agendaList"></div>
@@ -339,13 +677,8 @@
                 <p class="eyebrow">Da fare</p>
                 <h2>Compiti</h2>
               </div>
+              <span class="notice-badge hidden" id="homeworkBadge">0 nuovi</span>
             </div>
-            <form class="homework-form" id="homeworkForm">
-              <input name="subject" placeholder="Materia" required>
-              <input name="title" placeholder="Compito" required>
-              <input name="dueDate" type="date" required>
-              <button type="submit">Aggiungi</button>
-            </form>
             <div class="tasks" id="homeworkList"></div>
           </section>
 
@@ -355,8 +688,20 @@
                 <p class="eyebrow">Comunicazioni</p>
                 <h2>Bacheca</h2>
               </div>
+              <span class="notice-badge hidden" id="noticeBadge">0 nuove</span>
             </div>
             <div class="notices" id="noticesList"></div>
+          </section>
+
+          <section class="panel" id="svolto">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Lezione</p>
+                <h2>Svolto in classe</h2>
+              </div>
+              <span class="notice-badge hidden" id="classworkBadge">0 nuovi</span>
+            </div>
+            <div class="notices" id="classworkList"></div>
           </section>
 
           <section class="panel" id="note">
@@ -365,6 +710,7 @@
                 <p class="eyebrow">Registro</p>
                 <h2>Note studente</h2>
               </div>
+              <span class="notice-badge hidden" id="noteBadge">0 nuove</span>
             </div>
             <div class="notices" id="notesList"></div>
           </section>

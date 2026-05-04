@@ -1,4 +1,4 @@
-# Gabdat MyClass
+# Web Preview
 
 Registro scolastico web ispirato ai portali per studenti e famiglie.
 
