@@ -8,8 +8,11 @@ const state = {
   data: null,
   selectedClassId: null,
   selectedStudentId: null,
+  selectedTeacherId: localStorage.getItem("gabdat-teacher-id") || "",
   username: localStorage.getItem("gabdat-username") || ""
 };
+
+let deferredInstallPrompt = null;
 
 const shortDate = (value) => {
   const date = new Date(value);
@@ -17,6 +20,18 @@ const shortDate = (value) => {
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+const dayLabels = {
+  Lunedi: "Lunedì",
+  Martedi: "Martedì",
+  Mercoledi: "Mercoledì",
+  Giovedi: "Giovedì",
+  Venerdi: "Venerdì",
+  Sabato: "Sabato",
+  Domenica: "Domenica"
+};
+
+const displayDay = (value) => dayLabels[value] || value;
 
 const escapeHtml = (value) => String(value ?? "")
   .replaceAll("&", "&amp;")
@@ -36,6 +51,14 @@ const gradeValueClass = (value) => {
   return Number.isFinite(numericValue) && numericValue < 6 ? "grade-value insufficient" : "grade-value";
 };
 
+const attendanceStatusClass = (type) => {
+  const normalized = String(type || "").toLowerCase();
+  if (normalized.includes("presenza")) return "status-pill status-present";
+  if (normalized.includes("assenza")) return "status-pill status-absence";
+  if (normalized.includes("ritardo")) return "status-pill status-delay";
+  return "status-pill status-exit";
+};
+
 async function fetchJson(url, options) {
   const response = await fetch(url, options);
   if (!response.ok) {
@@ -46,7 +69,18 @@ async function fetchJson(url, options) {
 }
 
 function currentClass() {
-  return state.data.classes.find((schoolClass) => schoolClass.id === state.selectedClassId) || state.data.classes[0];
+  const classes = currentTeacherClasses();
+  return classes.find((schoolClass) => schoolClass.id === state.selectedClassId) || classes[0] || null;
+}
+
+function currentTeacherClasses() {
+  const classes = state.data?.classes || [];
+  if (!state.selectedTeacherId) return classes;
+  const firstTeacherId = teacherList()[0]?.id;
+  return classes.filter((schoolClass) => (
+    schoolClass.teacherId === state.selectedTeacherId ||
+    (!schoolClass.teacherId && state.selectedTeacherId === firstTeacherId)
+  ));
 }
 
 function currentClassStudents() {
@@ -56,7 +90,7 @@ function currentClassStudents() {
 
 function selectedStudent() {
   const select = document.querySelector("#studentSelect");
-  return state.data.students.find((student) => student.id === select.value) || currentClassStudents()[0] || state.data.students[0];
+  return state.data.students.find((student) => student.id === select.value) || currentClassStudents()[0] || null;
 }
 
 function selectedStudentView() {
@@ -64,8 +98,11 @@ function selectedStudentView() {
 }
 
 function fillStudentForm(student) {
-  if (!student) return;
   const form = document.querySelector("#studentForm");
+  if (!student) {
+    form.reset();
+    return;
+  }
   form.elements.studentId.value = student.id;
   form.elements.name.value = student.name;
   form.elements.classId.value = student.classId;
@@ -127,10 +164,33 @@ function optionList(items, labelKey = "name") {
   `).join("");
 }
 
+function teacherList() {
+  const teachers = state.data?.teachers || [];
+  if (teachers.length) return teachers;
+  return [
+    { id: "teacher-1", name: "Insegnante principale", subject: "" }
+  ];
+}
+
 function renderClassOptions() {
-  const options = optionList(state.data.classes);
+  const classes = currentTeacherClasses();
+  const options = optionList(classes);
   ["#newStudentClassSelect", "#editStudentClassSelect"].forEach((selector) => {
     document.querySelector(selector).innerHTML = options;
+  });
+}
+
+function renderTeacherOptions() {
+  const teachers = teacherList();
+  document.querySelector("#teacherSelect").innerHTML = optionList(teachers);
+  document.querySelector("#teacherSelect").value = state.selectedTeacherId || teachers[0]?.id || "";
+}
+
+function renderClassTeacherOptions() {
+  const options = optionList(teacherList());
+  ["#newClassTeacherSelect", "#editClassTeacherSelect"].forEach((selector) => {
+    document.querySelector(selector).innerHTML = options;
+    document.querySelector(selector).value = state.selectedTeacherId || teacherList()[0]?.id || "";
   });
 }
 
@@ -158,7 +218,8 @@ function renderStudentViewOptions() {
 }
 
 function renderClassTabs() {
-  document.querySelector("#classTabs").innerHTML = state.data.classes.map((schoolClass) => `
+  const classes = currentTeacherClasses();
+  document.querySelector("#classTabs").innerHTML = classes.map((schoolClass) => `
     <article class="class-tab ${schoolClass.id === state.selectedClassId ? "active" : ""}">
       <button class="class-tab-main" type="button" data-class-id="${escapeHtml(schoolClass.id)}">
         <strong>${escapeHtml(schoolClass.name)}</strong>
@@ -172,7 +233,7 @@ function renderClassTabs() {
         </div>
       </div>
     </article>
-  `).join("");
+  `).join("") || `<article class="notice"><strong>Nessuna classe</strong><span>Aggiungi una classe per questo insegnante.</span></article>`;
 }
 
 function dailyRecord() {
@@ -334,7 +395,7 @@ function renderClassStudentTable() {
 function renderTeacherRegister() {
   document.querySelector("#teacherRegisterList").innerHTML = state.data.attendance.slice(0, 6).map((item) => `
     <article class="register-item">
-      <span class="status-pill">${escapeHtml(item.type)}</span>
+      <span class="${attendanceStatusClass(item.type)}">${escapeHtml(item.type)}</span>
       <div>
         <strong>${escapeHtml(item.studentName)}</strong>
         <div class="meta">${escapeHtml(shortDate(item.date))} - ${escapeHtml(item.details || "")}</div>
@@ -399,7 +460,7 @@ function renderTeacherNotices() {
     <article class="notice">
       <strong>${escapeHtml(notice.title)}</strong>
       <span>${escapeHtml(notice.body)}</span>
-      <span class="meta">Priorita: ${escapeHtml(notice.priority || "Media")}</span>
+      <span class="meta">Priorità: ${escapeHtml(notice.priority || "Media")}</span>
       <div class="inline-actions">
         <button type="button" data-edit-notice="${escapeHtml(noticeId(notice))}">Modifica</button>
         <button type="button" data-remove-notice="${escapeHtml(noticeId(notice))}">Elimina</button>
@@ -441,7 +502,7 @@ function renderTeacherClasswork() {
         <button type="button" data-remove-classwork="${escapeHtml(classworkId(item))}">Elimina</button>
       </div>
     </article>
-  `).join("") || `<article class="notice"><strong>Nessuno svolto</strong><span>Lo svolto pubblicato per questa classe comparira qui.</span></article>`;
+  `).join("") || `<article class="notice"><strong>Nessuno svolto</strong><span>Lo svolto pubblicato per questa classe comparirà qui.</span></article>`;
 }
 
 function renderTeacherNotes() {
@@ -502,6 +563,17 @@ function noteKey(note) {
 
 function noteId(note) {
   return note.id || note._id || "";
+}
+
+function isAnnotation(note) {
+  return String(note?.type || "").toLowerCase() === "annotazione";
+}
+
+function unreadNotesTitle(unread) {
+  if (unread.length === 1) {
+    return isAnnotation(unread[0]) ? "Nuova annotazione" : "Nuova nota";
+  }
+  return unread.every(isAnnotation) ? "Nuove annotazioni" : "Nuove note/annotazioni";
 }
 
 function noteAppliesToStudent(note, student) {
@@ -713,6 +785,20 @@ function loginRoleForUsername(username) {
   return "";
 }
 
+function renderSessionStatus() {
+  const status = document.querySelector("#sessionStatus");
+  const logoutButton = document.querySelector("#logoutButton");
+  const role = loginRoleForUsername(state.username);
+  if (!state.username || !role) {
+    status.textContent = "Accesso non effettuato";
+    logoutButton.classList.add("hidden");
+    return;
+  }
+
+  status.textContent = `${state.username} - area ${role}`;
+  logoutButton.classList.remove("hidden");
+}
+
 function needsJustificationStatus(status) {
   return ["Assenza", "Ritardo", "Uscita anticipata"].includes(normalizedJustificationType(status));
 }
@@ -764,7 +850,7 @@ function renderJustificationAlerts(data, student) {
     <article class="student-alert justification-alert">
       <div>
         <strong>${pending.length === 1 ? "Hai 1 evento da giustificare" : `Hai ${pending.length} eventi da giustificare`}</strong>
-        <span>Completa la giustificazione: dopo l'invio questo avviso non comparira piu.</span>
+        <span>Completa la giustificazione: dopo l'invio questo avviso non comparirà più.</span>
       </div>
     </article>
     ${pending.map((item) => `
@@ -888,7 +974,7 @@ function renderNoteAlerts(notes, student) {
   container.innerHTML = unread.length ? `
     <article class="student-alert">
       <div>
-        <strong>${unread.length === 1 ? "Nuova nota" : "Nuove note"}</strong>
+        <strong>${unreadNotesTitle(unread)}</strong>
         <span>${unread[0] ? `${escapeHtml(unread[0].teacher || "Docente")} - ${escapeHtml(unread[0].body)}` : "Controlla le note."}</span>
       </div>
       <div class="student-alert-actions">
@@ -911,7 +997,7 @@ function renderTeacherSchedule() {
 
   document.querySelector("#teacherScheduleList").innerHTML = schedules.map((item) => `
     <article class="timeline-item">
-      <time>${escapeHtml(item.day)}<br>${escapeHtml(item.endTime ? `${item.time}-${item.endTime}` : item.time)}</time>
+      <time>${escapeHtml(displayDay(item.day))}<br>${escapeHtml(item.endTime ? `${item.time}-${item.endTime}` : item.time)}</time>
       <div>
         <strong>${escapeHtml(item.subject)}</strong>
         <div class="meta">${escapeHtml(item.room || "Aula non indicata")} - ${escapeHtml(item.teacher || "Docente non indicato")}</div>
@@ -948,10 +1034,18 @@ function renderNotes(data) {
 }
 
 function renderTeacherArea() {
-  if (!state.selectedClassId) {
-    state.selectedClassId = state.data.classes[0]?.id;
+  const teachers = teacherList();
+  if (!state.selectedTeacherId || !teachers.some((item) => item.id === state.selectedTeacherId)) {
+    state.selectedTeacherId = teachers[0]?.id || "";
   }
 
+  const teacherClasses = currentTeacherClasses();
+  if (!state.selectedClassId || !teacherClasses.some((item) => item.id === state.selectedClassId)) {
+    state.selectedClassId = teacherClasses[0]?.id || "";
+  }
+
+  renderTeacherOptions();
+  renderClassTeacherOptions();
   renderClassTabs();
   renderClassOptions();
   renderStudentOptions();
@@ -1010,7 +1104,7 @@ function renderDashboard(data) {
 
   document.querySelector("#agendaList").innerHTML = studentSchedules.map((item) => `
     <article class="timeline-item">
-      <time>${escapeHtml(item.day)}<br>${escapeHtml(item.endTime ? `${item.time}-${item.endTime}` : item.time)}</time>
+      <time>${escapeHtml(displayDay(item.day))}<br>${escapeHtml(item.endTime ? `${item.time}-${item.endTime}` : item.time)}</time>
       <div>
         <strong>${escapeHtml(item.subject)}</strong>
         <div class="meta">${escapeHtml(item.room || "Aula non indicata")} - ${escapeHtml(item.teacher || "Docente non indicato")}</div>
@@ -1042,7 +1136,7 @@ function renderDashboard(data) {
     <article class="notice">
       <strong>${escapeHtml(notice.title)}</strong>
       <span>${escapeHtml(notice.body)}</span>
-      <span class="meta">Priorita: ${escapeHtml(notice.priority)}</span>
+      <span class="meta">Priorità: ${escapeHtml(notice.priority)}</span>
     </article>
   `).join("") || `<article class="notice"><strong>Nessuna comunicazione</strong><span>Le comunicazioni dei docenti compariranno qui.</span></article>`;
 
@@ -1067,8 +1161,14 @@ async function loadDashboard() {
   ]);
 
   state.data = dashboard;
+  if (!state.data.teachers?.length) {
+    state.data.teachers = teacherList();
+  }
+  if (!state.selectedTeacherId || !teacherList().some((item) => item.id === state.selectedTeacherId)) {
+    state.selectedTeacherId = teacherList()[0]?.id || "";
+  }
   if (!state.selectedClassId || !dashboard.classes.some((item) => item.id === state.selectedClassId)) {
-    state.selectedClassId = dashboard.classes[0]?.id;
+    state.selectedClassId = dashboard.classes.find((item) => item.teacherId === state.selectedTeacherId)?.id || dashboard.classes[0]?.id;
   }
   if (!state.selectedStudentId || !dashboard.students.some((item) => item.id === state.selectedStudentId)) {
     state.selectedStudentId = dashboard.students[0]?.id;
@@ -1114,7 +1214,54 @@ function showActiveArea() {
     const target = link.getAttribute("href");
     link.classList.toggle("active", target === activePath);
   });
+  renderSessionStatus();
 }
+
+document.querySelector("#logoutButton").addEventListener("click", () => {
+  state.username = "";
+  localStorage.removeItem("gabdat-username");
+  document.querySelector("#loginUsername").value = "";
+  window.history.pushState({}, "", "/");
+  showActiveArea();
+});
+
+document.querySelector("#homeMenuButton").addEventListener("click", () => {
+  const panel = document.querySelector("#homeMenuPanel");
+  const isHidden = panel.classList.toggle("hidden");
+  document.querySelector("#homeMenuButton").setAttribute("aria-expanded", String(!isHidden));
+});
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  document.querySelector("#installAppButton").disabled = false;
+  document.querySelector("#installHelp").textContent = "Premi Installa app per aggiungere My Class alla schermata Home.";
+});
+
+document.querySelector("#installAppButton").addEventListener("click", async () => {
+  if (!deferredInstallPrompt) {
+    document.querySelector("#installHelp").textContent = "Se il pulsante non parte: apri i tre puntini del browser e scegli Installa app o Aggiungi a schermata Home.";
+    return;
+  }
+
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+});
+
+document.querySelector("#refreshAppButton").addEventListener("click", async () => {
+  if ("serviceWorker" in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map((registration) => registration.unregister()));
+  }
+
+  if ("caches" in window) {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((key) => caches.delete(key)));
+  }
+
+  window.location.reload();
+});
 
 document.querySelector("#classTabs").addEventListener("click", async (event) => {
   const menuToggle = event.target.closest("[data-class-menu-toggle]");
@@ -1137,6 +1284,7 @@ document.querySelector("#classTabs").addEventListener("click", async (event) => 
     form.elements.classId.value = schoolClass.id;
     form.elements.name.value = schoolClass.name;
     form.elements.schoolYear.value = schoolClass.schoolYear || "";
+    form.elements.teacherId.value = schoolClass.teacherId || state.selectedTeacherId;
     state.selectedClassId = schoolClass.id;
     renderClassTabs();
     return;
@@ -1186,8 +1334,8 @@ document.querySelector("#loginForm").addEventListener("submit", (event) => {
   }
   if (allowedRole !== requestedRole) {
     error.textContent = allowedRole === "studenti"
-      ? "Questo username puo entrare solo nell'area studenti."
-      : "Questo username puo entrare solo nell'area insegnanti.";
+      ? "Questo username può entrare solo nell'area studenti."
+      : "Questo username può entrare solo nell'area insegnanti.";
     return;
   }
 
@@ -1340,6 +1488,10 @@ document.querySelector("#teacherScheduleList").addEventListener("click", async (
 
 document.addEventListener("click", (event) => {
   if (event.target.closest(".row-actions")) return;
+  if (!event.target.closest(".home-menu")) {
+    document.querySelector("#homeMenuPanel").classList.add("hidden");
+    document.querySelector("#homeMenuButton").setAttribute("aria-expanded", "false");
+  }
   document.querySelectorAll(".row-menu.open").forEach((menu) => menu.classList.remove("open"));
 });
 
@@ -1350,6 +1502,38 @@ document.querySelector("#studentSelect").addEventListener("change", () => {
 document.querySelector("#studentViewSelect").addEventListener("change", (event) => {
   state.selectedStudentId = event.currentTarget.value;
   renderDashboard(state.data);
+});
+
+document.querySelector("#teacherSelect").addEventListener("change", (event) => {
+  state.selectedTeacherId = event.currentTarget.value;
+  localStorage.setItem("gabdat-teacher-id", state.selectedTeacherId);
+  state.selectedClassId = currentTeacherClasses()[0]?.id || "";
+  renderTeacherArea();
+});
+
+document.querySelector("#editTeacherButton").addEventListener("click", () => {
+  const teacher = teacherList().find((item) => item.id === state.selectedTeacherId);
+  if (!teacher) return;
+
+  const form = document.querySelector("#teacherEditor");
+  form.classList.remove("hidden");
+  form.elements.teacherId.value = teacher.id;
+  form.elements.name.value = teacher.name || "";
+  form.elements.subject.value = teacher.subject || "";
+});
+
+document.querySelector("#deleteTeacherButton").addEventListener("click", async () => {
+  const teacher = teacherList().find((item) => item.id === state.selectedTeacherId);
+  if (!teacher) return;
+
+  const confirmed = window.confirm(`Eliminare ${teacher.name}? Le sue classi verranno assegnate a un altro insegnante.`);
+  if (!confirmed) return;
+
+  const result = await fetchJson(`/api/teachers/${teacher.id}`, { method: "DELETE" });
+  state.selectedTeacherId = result.reassignedTo || "";
+  localStorage.setItem("gabdat-teacher-id", state.selectedTeacherId);
+  state.selectedClassId = "";
+  await loadDashboard();
 });
 
 document.querySelector("#justificationAlerts").addEventListener("click", (event) => {
@@ -1502,18 +1686,61 @@ document.querySelector("#classCreator").addEventListener("submit", async (event)
   event.preventDefault();
   const form = event.currentTarget;
   const formData = new FormData(form);
+  const teacherId = formData.get("teacherId") || state.selectedTeacherId;
 
   const schoolClass = await fetchJson("/api/classes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       name: formData.get("name"),
-      schoolYear: formData.get("schoolYear")
+      schoolYear: formData.get("schoolYear"),
+      teacherId
     })
   });
 
+  state.selectedTeacherId = teacherId;
+  localStorage.setItem("gabdat-teacher-id", state.selectedTeacherId);
   state.selectedClassId = schoolClass.id;
   form.reset();
+  await loadDashboard();
+});
+
+document.querySelector("#teacherCreator").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+
+  const teacher = await fetchJson("/api/teachers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: formData.get("name"),
+      subject: formData.get("subject")
+    })
+  });
+
+  state.selectedTeacherId = teacher.id;
+  localStorage.setItem("gabdat-teacher-id", state.selectedTeacherId);
+  form.reset();
+  await loadDashboard();
+});
+
+document.querySelector("#teacherEditor").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+
+  await fetchJson(`/api/teachers/${formData.get("teacherId")}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: formData.get("name"),
+      subject: formData.get("subject")
+    })
+  });
+
+  form.reset();
+  form.classList.add("hidden");
   await loadDashboard();
 });
 
@@ -1527,7 +1754,8 @@ document.querySelector("#classEditor").addEventListener("submit", async (event) 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       name: formData.get("name"),
-      schoolYear: formData.get("schoolYear")
+      schoolYear: formData.get("schoolYear"),
+      teacherId: formData.get("teacherId") || state.selectedTeacherId
     })
   });
 
@@ -1811,7 +2039,7 @@ document.querySelector("#noteForm").addEventListener("submit", async (event) => 
 
   form.reset();
   form.elements.noteId.value = "";
-  form.querySelector("button[type='submit']").textContent = "Inserisci nota";
+  form.querySelector("button[type='submit']").textContent = "Inserisci nota / annotazione";
   setDefaultDates();
   await loadDashboard();
 });
@@ -2000,3 +2228,11 @@ loadDashboard().catch((error) => {
 setInterval(() => {
   if (state.data) renderClassStudentTable();
 }, 60000);
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // The app still works in browsers that block service workers locally.
+    });
+  });
+}

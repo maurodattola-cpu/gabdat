@@ -12,9 +12,13 @@ let client;
 let db;
 
 const demoData = {
+  teachers: [
+    { id: "teacher-1", name: "Prof. Rossi", subject: "Matematica" },
+    { id: "teacher-2", name: "Prof.ssa Greco", subject: "Informatica" }
+  ],
   classes: [
-    { id: "class-3b-inf", name: "3B Informatica", schoolYear: "2025/2026" },
-    { id: "class-2a-inf", name: "2A Informatica", schoolYear: "2025/2026" }
+    { id: "class-3b-inf", name: "3B Informatica", schoolYear: "2025/2026", teacherId: "teacher-1" },
+    { id: "class-2a-inf", name: "2A Informatica", schoolYear: "2025/2026", teacherId: "teacher-2" }
   ],
   student: {
     id: "stu-1",
@@ -282,7 +286,8 @@ app.get("/api/status", async (_req, res) => {
 
 app.get("/api/dashboard", async (_req, res) => {
   try {
-    const [classes, rawStudents, grades, homework, classwork, agenda, schedules, notices, attendance, notes, reportCards, dailyAttendance, lessonAttendance, earlyExits, justifications] = await Promise.all([
+    const [rawTeachers, rawClasses, rawStudents, grades, homework, classwork, agenda, schedules, notices, attendance, notes, reportCards, dailyAttendance, lessonAttendance, earlyExits, justifications] = await Promise.all([
+      getCollectionData("teachers", demoData.teachers),
       getCollectionData("classes", demoData.classes),
       getCollectionData("students", demoData.students),
       getCollectionData("grades", demoData.grades),
@@ -299,6 +304,15 @@ app.get("/api/dashboard", async (_req, res) => {
       getCollectionData("earlyExits", demoData.earlyExits),
       getCollectionData("justifications", demoData.justifications)
     ]);
+    const teachers = rawTeachers.map((teacher, index) => ({
+      ...teacher,
+      id: teacher.id || teacher._id?.toString?.() || `teacher-${index + 1}`
+    }));
+    const fallbackTeacherId = teachers[0]?.id || "teacher-1";
+    const classes = rawClasses.map((schoolClass) => ({
+      ...schoolClass,
+      teacherId: schoolClass.teacherId || fallbackTeacherId
+    }));
     const students = normalizeStudents(rawStudents, classes);
     const normalizedGrades = grades.map((grade, index) => ({
       ...grade,
@@ -315,6 +329,7 @@ app.get("/api/dashboard", async (_req, res) => {
 
     res.json({
       student: students[0] || demoData.student,
+      teachers,
       classes,
       students,
       grades: normalizedGrades,
@@ -338,7 +353,7 @@ app.get("/api/dashboard", async (_req, res) => {
 
 app.post("/api/classes", async (req, res) => {
   try {
-    const { name, schoolYear } = req.body;
+    const { name, schoolYear, teacherId } = req.body;
     if (!name) {
       return res.status(400).json({ message: "Il nome della classe e obbligatorio." });
     }
@@ -347,6 +362,7 @@ app.post("/api/classes", async (req, res) => {
       id: slug(name) || makeId("class"),
       name,
       schoolYear: schoolYear || "2025/2026",
+      teacherId: teacherId || demoData.teachers[0]?.id || "teacher-1",
       createdAt: new Date()
     };
     const database = await connectDb();
@@ -366,7 +382,7 @@ app.post("/api/classes", async (req, res) => {
 app.put("/api/classes/:id", async (req, res) => {
   try {
     const classId = req.params.id;
-    const { name, schoolYear } = req.body;
+    const { name, schoolYear, teacherId } = req.body;
     if (!name) {
       return res.status(400).json({ message: "Il nome della classe e obbligatorio." });
     }
@@ -375,6 +391,7 @@ app.put("/api/classes/:id", async (req, res) => {
     const updates = {
       name,
       schoolYear: schoolYear || "2025/2026",
+      ...(teacherId ? { teacherId } : {}),
       updatedAt: new Date()
     };
 
@@ -419,6 +436,98 @@ app.put("/api/classes/:id", async (req, res) => {
     res.json({ id: classId, ...updates });
   } catch (error) {
     res.status(500).json({ message: "Errore nell'aggiornamento della classe", details: error.message });
+  }
+});
+
+app.post("/api/teachers", async (req, res) => {
+  try {
+    const { name, subject } = req.body;
+    if (!name) {
+      return res.status(400).json({ message: "Il nome dell'insegnante e obbligatorio." });
+    }
+
+    const teacher = {
+      id: makeId("teacher"),
+      name,
+      subject: subject || "",
+      createdAt: new Date()
+    };
+    const database = await connectDb();
+
+    if (!database) {
+      demoData.teachers.unshift(teacher);
+      return res.status(201).json(teacher);
+    }
+
+    await database.collection("teachers").insertOne(teacher);
+    res.status(201).json(teacher);
+  } catch (error) {
+    res.status(500).json({ message: "Errore nel salvataggio dell'insegnante", details: error.message });
+  }
+});
+
+app.put("/api/teachers/:id", async (req, res) => {
+  try {
+    const teacherId = req.params.id;
+    const { name, subject } = req.body;
+    if (!name) {
+      return res.status(400).json({ message: "Il nome dell'insegnante e obbligatorio." });
+    }
+
+    const updates = {
+      name,
+      subject: subject || "",
+      updatedAt: new Date()
+    };
+    const database = await connectDb();
+
+    if (!database) {
+      const teacher = demoData.teachers.find((item) => item.id === teacherId);
+      if (!teacher) return res.status(404).json({ message: "Insegnante non trovato." });
+      Object.assign(teacher, updates);
+      return res.json({ id: teacherId, ...updates });
+    }
+
+    const result = await database.collection("teachers").updateOne({ id: teacherId }, { $set: updates });
+    if (!result.matchedCount) return res.status(404).json({ message: "Insegnante non trovato." });
+    res.json({ id: teacherId, ...updates });
+  } catch (error) {
+    res.status(500).json({ message: "Errore nell'aggiornamento dell'insegnante", details: error.message });
+  }
+});
+
+app.delete("/api/teachers/:id", async (req, res) => {
+  try {
+    const teacherId = req.params.id;
+    const fallbackTeacher = demoData.teachers.find((item) => item.id !== teacherId) || demoData.teachers[0];
+    const fallbackTeacherId = fallbackTeacher?.id || "";
+    const database = await connectDb();
+
+    if (!database) {
+      if (demoData.teachers.length <= 1) {
+        return res.status(400).json({ message: "Deve restare almeno un insegnante." });
+      }
+      demoData.teachers = demoData.teachers.filter((item) => item.id !== teacherId);
+      demoData.classes.forEach((schoolClass) => {
+        if (schoolClass.teacherId === teacherId) schoolClass.teacherId = fallbackTeacherId;
+      });
+      return res.json({ ok: true, removed: teacherId, reassignedTo: fallbackTeacherId });
+    }
+
+    const teacherCount = await database.collection("teachers").countDocuments();
+    if (teacherCount <= 1) {
+      return res.status(400).json({ message: "Deve restare almeno un insegnante." });
+    }
+
+    const fallback = await database.collection("teachers").findOne({ id: { $ne: teacherId } });
+    if (!fallback) return res.status(400).json({ message: "Nessun insegnante alternativo disponibile." });
+
+    const result = await database.collection("teachers").deleteOne({ id: teacherId });
+    if (!result.deletedCount) return res.status(404).json({ message: "Insegnante non trovato." });
+    await database.collection("classes").updateMany({ teacherId }, { $set: { teacherId: fallback.id } });
+    res.json({ ok: true, removed: teacherId, reassignedTo: fallback.id });
+  } catch (error) {
+    res.status(500).json({ message: "Errore nell'eliminazione dell'insegnante", details: error.message });
   }
 });
 

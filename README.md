@@ -1,4 +1,4 @@
-# Web Preview
+# My Class
 
 Registro scolastico web ispirato ai portali per studenti e famiglie.
 

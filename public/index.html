@@ -3,20 +3,28 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Web Preview</title>
+    <title>My Class</title>
+    <meta name="description" content="Registro scolastico digitale per studenti e insegnanti.">
+    <meta name="theme-color" content="#14513e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="My Class">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.webmanifest?v=23">
+    <link rel="icon" href="/icon.svg?v=23" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.svg?v=23">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Serif+4:opsz,wght@8..60,500;8..60,700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=23">
   </head>
   <body>
     <div class="shell">
       <aside class="sidebar">
-        <a class="brand" href="/" aria-label="Web Preview home">
-          <span class="brand-mark">W</span>
+        <a class="brand" href="/" aria-label="My Class home">
+          <span class="brand-mark">M</span>
           <span>
-            <strong>Web</strong>
-            <small>Preview</small>
+            <strong>My</strong>
+            <small>Class</small>
           </span>
         </a>
 
@@ -28,15 +36,29 @@
         <div class="mini-card">
           <span id="dbMode">Connessione...</span>
           <strong id="dbStatus">Verifica database</strong>
+          <small id="sessionStatus">Accesso non effettuato</small>
         </div>
+
+        <button class="logout-button hidden" id="logoutButton" type="button">Esci</button>
       </aside>
 
       <main class="content">
+        <div class="home-menu">
+          <button class="dots-button home-menu-button" id="homeMenuButton" type="button" aria-label="Menu app" aria-expanded="false">...</button>
+          <div class="home-menu-panel hidden" id="homeMenuPanel">
+            <strong>Installa My Class</strong>
+            <button type="button" id="installAppButton">Installa app</button>
+            <span id="installHelp">Android/Chrome: tre puntini del browser, poi Installa app o Aggiungi a schermata Home.</span>
+            <span>iPhone/Safari: Condividi, poi Aggiungi alla schermata Home.</span>
+            <button class="menu-secondary-button" type="button" id="refreshAppButton">Aggiorna app</button>
+          </div>
+        </div>
+
         <section class="home-view app-view" id="homeView">
           <div class="home-copy">
             <p class="eyebrow">Accesso</p>
-            <h1>Web Preview</h1>
-            <p class="hero-copy">Inserisci il tuo username e scegli l'area da aprire.</p>
+            <h1>My Class</h1>
+            <p class="hero-copy">Registro scolastico digitale per voti, presenze, compiti, bacheca e gestione classi.</p>
           </div>
           <form class="panel login-panel" id="loginForm">
             <label>
@@ -168,10 +190,51 @@
               <h2>Home classi</h2>
             </div>
             <div class="title-actions">
+              <button class="square-button" type="button" data-open-panel="teacherCreator" aria-label="Aggiungi insegnante">+</button>
               <button class="square-button" type="button" data-open-panel="classCreator" aria-label="Aggiungi classe">+</button>
               <button class="square-button" type="button" data-open-panel="studentCreator" aria-label="Aggiungi alunno">+</button>
             </div>
           </div>
+
+          <section class="panel teacher-selector">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Docente attivo</p>
+                <h2>Insegnante</h2>
+              </div>
+            </div>
+            <label>
+              Seleziona insegnante
+              <select id="teacherSelect" aria-label="Seleziona insegnante"></select>
+            </label>
+            <div class="inline-actions teacher-actions">
+              <button type="button" id="editTeacherButton">Modifica insegnante</button>
+              <button type="button" id="deleteTeacherButton">Elimina insegnante</button>
+            </div>
+            <form class="teacher-form compact-form hidden" id="teacherCreator">
+              <label>
+                Nome insegnante
+                <input name="name" placeholder="Prof. Bianchi" required>
+              </label>
+              <label>
+                Materia
+                <input name="subject" placeholder="Materia insegnata">
+              </label>
+              <button type="submit">Aggiungi insegnante</button>
+            </form>
+            <form class="teacher-form compact-form hidden" id="teacherEditor">
+              <input name="teacherId" type="hidden">
+              <label>
+                Nome insegnante
+                <input name="name" placeholder="Prof. Bianchi" required>
+              </label>
+              <label>
+                Materia
+                <input name="subject" placeholder="Materia insegnata">
+              </label>
+              <button type="submit">Salva insegnante</button>
+            </form>
+          </section>
 
           <div class="teacher-home">
             <section class="panel">
@@ -191,6 +254,10 @@
                   Anno scolastico
                   <input name="schoolYear" placeholder="2025/2026">
                 </label>
+                <label>
+                  Insegnante
+                  <select name="teacherId" id="newClassTeacherSelect"></select>
+                </label>
                 <button type="submit">Aggiungi classe</button>
               </form>
               <form class="teacher-form compact-form hidden" id="classEditor">
@@ -202,6 +269,10 @@
                 <label>
                   Anno scolastico
                   <input name="schoolYear" placeholder="2025/2026">
+                </label>
+                <label>
+                  Insegnante
+                  <select name="teacherId" id="editClassTeacherSelect"></select>
                 </label>
                 <button type="submit">Salva classe</button>
               </form>
@@ -265,13 +336,13 @@
                 <label>
                   Giorno
                   <select name="day">
-                    <option>Lunedi</option>
-                    <option>Martedi</option>
-                    <option>Mercoledi</option>
-                    <option>Giovedi</option>
-                    <option>Venerdi</option>
-                    <option>Sabato</option>
-                    <option>Domenica</option>
+                    <option value="Lunedi">Lunedì</option>
+                    <option value="Martedi">Martedì</option>
+                    <option value="Mercoledi">Mercoledì</option>
+                    <option value="Giovedi">Giovedì</option>
+                    <option value="Venerdi">Venerdì</option>
+                    <option value="Sabato">Sabato</option>
+                    <option value="Domenica">Domenica</option>
                   </select>
                 </label>
                 <label>
@@ -518,6 +589,7 @@
                   <select name="type">
                     <option>Note disciplinari</option>
                     <option>Note di merito</option>
+                    <option>Annotazione</option>
                   </select>
                 </label>
                 <label>
@@ -528,7 +600,7 @@
                   Nota
                   <textarea name="body" rows="4" placeholder="Scrivi la nota" required></textarea>
                 </label>
-                <button type="submit">Inserisci nota</button>
+                <button type="submit">Inserisci nota / annotazione</button>
               </form>
             </section>
 
@@ -594,7 +666,7 @@
                   <input name="teacher" placeholder="Prof. Rossi">
                 </label>
                 <label>
-                  Cosa e stato svolto
+                  Cosa è stato svolto
                   <textarea name="body" rows="4" placeholder="Scrivi gli argomenti svolti in classe" required></textarea>
                 </label>
                 <label>
@@ -624,7 +696,7 @@
                   <textarea name="body" rows="4" placeholder="Scrivi la comunicazione" required></textarea>
                 </label>
                 <label>
-                  Priorita
+                  Priorità
                   <select name="priority">
                     <option>Media</option>
                     <option>Alta</option>
@@ -708,7 +780,7 @@
             <div class="panel-head">
               <div>
                 <p class="eyebrow">Registro</p>
-                <h2>Note studente</h2>
+                <h2>Note/annotazioni studente</h2>
               </div>
               <span class="notice-badge hidden" id="noteBadge">0 nuove</span>
             </div>
@@ -718,6 +790,6 @@
       </main>
     </div>
 
-    <script src="/app.js"></script>
+    <script src="/app.js?v=23"></script>
   </body>
 </html>
