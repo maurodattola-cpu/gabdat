@@ -5,7 +5,7 @@ require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT || 3000;
-const mongoUri = process.env.MONGODB_URI;
+const mongoUri = process.env.MONGODB_URI || mongodb+srv://gabdat_db_user:<db_password>@gabdat.tr0lojb.mongodb.net/gabdat?retryWrites=true&w=majority&appName=gabdat;
 const dbName = process.env.MONGODB_DB || "gabdat";
 
 let client;
