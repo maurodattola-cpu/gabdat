@@ -90,6 +90,7 @@ function currentClassStudents() {
 
 function itemMatchesClass(item, schoolClass, classStudentIds = new Set()) {
   if (!item || !schoolClass) return false;
+  if (item.studentId) return classStudentIds.has(item.studentId);
   return item.classId === schoolClass.id || item.className === schoolClass.name || classStudentIds.has(item.studentId);
 }
 
@@ -482,8 +483,9 @@ function renderTeacherGrades() {
 
 function renderTeacherEarlyExits() {
   const schoolClass = currentClass();
+  const classStudentIds = new Set(currentClassStudents().map((student) => student.id));
   const exits = [...(state.data.earlyExits || [])]
-    .filter((item) => itemMatchesClass(item, schoolClass))
+    .filter((item) => itemMatchesClass(item, schoolClass, classStudentIds))
     .sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
   document.querySelector("#teacherEarlyExitsList").innerHTML = exits.map((item) => `
     <article class="notice">
@@ -496,8 +498,9 @@ function renderTeacherEarlyExits() {
 
 function renderTeacherJustifications() {
   const schoolClass = currentClass();
+  const classStudentIds = new Set(currentClassStudents().map((student) => student.id));
   const justifications = (state.data.justifications || [])
-    .filter((item) => item.classId === schoolClass?.id || item.className === schoolClass?.name)
+    .filter((item) => itemMatchesClass(item, schoolClass, classStudentIds))
     .sort((a, b) => String(b.createdAt || b.date || "").localeCompare(String(a.createdAt || a.date || "")));
 
   document.querySelector("#teacherJustificationsList").innerHTML = justifications.map((item) => `
@@ -548,8 +551,9 @@ function renderTeacherHomework() {
 
 function renderTeacherClasswork() {
   const schoolClass = currentClass();
+  const classStudentIds = new Set(currentClassStudents().map((student) => student.id));
   const classwork = [...(state.data.classwork || [])]
-    .filter((item) => item.classId === schoolClass?.id || item.className === schoolClass?.name)
+    .filter((item) => itemMatchesClass(item, schoolClass, classStudentIds))
     .sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
   document.querySelector("#teacherClassworkList").innerHTML = classwork.map((item) => `
     <article class="notice">
@@ -569,7 +573,7 @@ function renderTeacherNotes() {
   const schoolClass = currentClass();
   const classStudentIds = new Set(currentClassStudents().map((student) => student.id));
   const notes = [...(state.data.notes || [])]
-    .filter((note) => note.classId === schoolClass?.id || classStudentIds.has(note.studentId))
+    .filter((note) => itemMatchesClass(note, schoolClass, classStudentIds))
     .sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
 
   document.querySelector("#teacherNotesList").innerHTML = notes.map((note) => `
@@ -1143,7 +1147,7 @@ function renderTeacherArea() {
 
 function renderDashboard(data) {
   const student = selectedStudentView() || data.student;
-  const studentGrades = data.grades.filter((grade) => !grade.studentId || grade.studentId === student.id);
+  const studentGrades = data.grades.filter((grade) => grade.studentId === student.id);
   const studentNotes = data.notes.filter((note) => noteAppliesToStudent(note, student));
   const scheduleOrder = ["Lunedi", "Martedi", "Mercoledi", "Giovedi", "Venerdi", "Sabato", "Domenica"];
   const studentSchedules = (data.schedules || [])
