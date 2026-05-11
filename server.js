@@ -452,7 +452,7 @@ function recalculateDemoAverage(studentId) {
 
   const studentGrades = demoData.grades
     .filter((item) => !item.studentId || item.studentId === studentId)
-    .map((item) => Number.parseFloat(item.value))
+    .map((item) => gradeNumericValue(item.value))
     .filter((value) => Number.isFinite(value));
   const total = studentGrades.reduce((sum, value) => sum + value, 0);
   student.average = studentGrades.length ? Number((total / studentGrades.length).toFixed(1)) : 0;
@@ -462,19 +462,31 @@ function recalculateDemoAverage(studentId) {
 async function recalculateDbAverage(database, studentId) {
   const studentGrades = await database.collection("grades").find({ studentId }).toArray();
   const numericGrades = studentGrades
-    .map((item) => Number.parseFloat(item.value))
+    .map((item) => gradeNumericValue(item.value))
     .filter((value) => Number.isFinite(value));
   const total = numericGrades.reduce((sum, value) => sum + value, 0);
   const average = numericGrades.length ? Number((total / numericGrades.length).toFixed(1)) : 0;
   await database.collection("students").updateOne({ id: studentId }, { $set: { average } });
 }
 
+function gradeNumericValue(value) {
+  const match = String(value ?? "").trim().replace(",", ".").match(/^(\d+(?:\.\d+)?)([+-])?$/);
+  if (!match) return Number.NaN;
+  const baseValue = Number.parseFloat(match[1]);
+  if (!Number.isFinite(baseValue)) return Number.NaN;
+  if (match[2] === "+") return baseValue + 0.25;
+  if (match[2] === "-") return baseValue - 0.25;
+  return baseValue;
+}
+
 function normalizeGradeValue(value) {
-  const trimmedValue = String(value).trim();
+  const trimmedValue = String(value).trim().replace(",", ".");
   const upperValue = trimmedValue.toUpperCase();
   if (upperValue === "SV") return "SV";
   if (["+", "-"].includes(trimmedValue)) return trimmedValue;
-  return Number.parseFloat(trimmedValue);
+  const match = trimmedValue.match(/^(\d+(?:\.\d+)?)([+-])?$/);
+  if (!match) return null;
+  return `${match[1]}${match[2] || ""}`;
 }
 
 app.get("/api/status", async (_req, res) => {
@@ -1750,8 +1762,9 @@ app.post("/api/grades", async (req, res) => {
       return res.status(400).json({ message: "Alunno, materia, voto, tipo, data e docente sono obbligatori." });
     }
     const normalizedValue = normalizeGradeValue(value);
-    if (!["SV", "+", "-"].includes(normalizedValue) && (!Number.isFinite(normalizedValue) || normalizedValue < 1 || normalizedValue > 10)) {
-      return res.status(400).json({ message: "Il voto deve essere un numero da 1 a 10, SV, + oppure -." });
+    const numericValue = gradeNumericValue(normalizedValue);
+    if (!["SV", "+", "-"].includes(normalizedValue) && (!Number.isFinite(numericValue) || numericValue < 1 || numericValue > 10)) {
+      return res.status(400).json({ message: "Il voto deve essere un numero da 1 a 10 anche con + o -, SV, + oppure -." });
     }
 
     const database = await connectDb();
@@ -1808,8 +1821,9 @@ app.put("/api/grades/:id", async (req, res) => {
       return res.status(400).json({ message: "Alunno, materia, voto, tipo, data e docente sono obbligatori." });
     }
     const normalizedValue = normalizeGradeValue(value);
-    if (!["SV", "+", "-"].includes(normalizedValue) && (!Number.isFinite(normalizedValue) || normalizedValue < 1 || normalizedValue > 10)) {
-      return res.status(400).json({ message: "Il voto deve essere un numero da 1 a 10, SV, + oppure -." });
+    const numericValue = gradeNumericValue(normalizedValue);
+    if (!["SV", "+", "-"].includes(normalizedValue) && (!Number.isFinite(numericValue) || numericValue < 1 || numericValue > 10)) {
+      return res.status(400).json({ message: "Il voto deve essere un numero da 1 a 10 anche con + o -, SV, + oppure -." });
     }
 
     const database = await connectDb();

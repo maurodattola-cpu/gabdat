@@ -41,15 +41,25 @@ const escapeHtml = (value) => String(value ?? "")
   .replaceAll("'", "&#039;");
 
 const gradeOutcome = (value) => {
-  const numericValue = Number.parseFloat(value);
+  const numericValue = gradeNumericValue(value);
   if (!Number.isFinite(numericValue)) return "Senza voto";
   return numericValue >= 6 ? "Positivo" : "Da recuperare";
 };
 
 const gradeValueClass = (value) => {
-  const numericValue = Number.parseFloat(value);
+  const numericValue = gradeNumericValue(value);
   return Number.isFinite(numericValue) && numericValue < 6 ? "grade-value insufficient" : "grade-value";
 };
+
+function gradeNumericValue(value) {
+  const match = String(value ?? "").trim().replace(",", ".").match(/^(\d+(?:\.\d+)?)([+-])?$/);
+  if (!match) return Number.NaN;
+  const baseValue = Number.parseFloat(match[1]);
+  if (!Number.isFinite(baseValue)) return Number.NaN;
+  if (match[2] === "+") return baseValue + 0.25;
+  if (match[2] === "-") return baseValue - 0.25;
+  return baseValue;
+}
 
 const attendanceStatusClass = (type) => {
   const normalized = String(type || "").toLowerCase();
