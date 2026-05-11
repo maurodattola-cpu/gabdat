@@ -6,7 +6,7 @@ require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT || 3000;
-const mongoUri = process.env.MONGODB_URI || mongodb+srv://gabdat_db_user:<db_password>@gabdat.tr0lojb.mongodb.net/gabdat?retryWrites=true&w=majority&appName=gabdat;
+const mongoUri = process.env.MONGODB_URI || "";
 const dbName = process.env.MONGODB_DB || "gabdat";
 const smtpPort = Number(process.env.SMTP_PORT || 587);
 const defaultMailRecipients = splitEnvList(process.env.NOTIFICATION_EMAIL_TO);
