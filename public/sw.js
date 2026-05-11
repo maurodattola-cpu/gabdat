@@ -1,10 +1,10 @@
-const CACHE_NAME = "my-class-v27";
+const CACHE_NAME = "my-class-v28";
 const APP_SHELL = [
   "/",
-  "/styles.css?v=27",
-  "/app.js?v=27",
-  "/manifest.webmanifest?v=27",
-  "/icon.svg?v=27"
+  "/styles.css?v=28",
+  "/app.js?v=28",
+  "/manifest.webmanifest?v=28",
+  "/icon.svg?v=28"
 ];
 
 self.addEventListener("install", (event) => {

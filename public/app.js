@@ -364,10 +364,11 @@ function renderClassStudentTable() {
   const record = lessonRecord() || dailyRecord();
   const savedRows = record?.rows || [];
   renderSavedDailyDates();
-  const rows = currentClassStudents().map((student) => {
+  const rows = currentClassStudents().map((student, index) => {
     const saved = savedRows.find((row) => row.studentId === student.id);
     return `
       <tr data-student-id="${escapeHtml(student.id)}">
+        <td>${index + 1}</td>
         <td>
           <strong>${escapeHtml(student.name)}</strong>
           <span>${escapeHtml(student.className)}</span>
@@ -395,7 +396,7 @@ function renderClassStudentTable() {
 
   document.querySelector("#classStudentsTable").innerHTML = rows || `
     <tr>
-      <td colspan="5">Nessun alunno in questa classe.</td>
+      <td colspan="6">Nessun alunno in questa classe.</td>
     </tr>
   `;
 
