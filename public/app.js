@@ -59,13 +59,208 @@ const attendanceStatusClass = (type) => {
   return "status-pill status-exit";
 };
 
-async function fetchJson(url, options) {
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || `Errore HTTP ${response.status}`);
+const staticDashboardKey = "gabdat-static-dashboard-v1";
+
+const staticDefaultDashboard = {
+  student: {
+    id: "stu-demo-1",
+    name: "Studente demo",
+    email: "",
+    classId: "class-demo-1",
+    className: "Classe demo",
+    schoolYear: "2025/2026",
+    average: 0,
+    absences: 0,
+    delays: 0,
+    notes: 0
+  },
+  teachers: [{ id: "teacher-demo-1", name: "Insegnante principale", subject: "" }],
+  classes: [{ id: "class-demo-1", name: "Classe demo", schoolYear: "2025/2026", teacherId: "teacher-demo-1" }],
+  students: [{
+    id: "stu-demo-1",
+    name: "Studente demo",
+    email: "",
+    classId: "class-demo-1",
+    className: "Classe demo",
+    schoolYear: "2025/2026",
+    average: 0,
+    absences: 0,
+    delays: 0,
+    notes: 0
+  }],
+  grades: [],
+  homework: [],
+  classwork: [],
+  agenda: [],
+  schedules: [],
+  notices: [],
+  attendance: [],
+  notes: [],
+  reportCards: [],
+  dailyAttendance: [],
+  lessonAttendance: [],
+  earlyExits: [],
+  justifications: []
+};
+
+function cloneData(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function staticId(prefix) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function staticDashboard() {
+  const saved = localStorage.getItem(staticDashboardKey);
+  if (!saved) return cloneData(staticDefaultDashboard);
+  return { ...cloneData(staticDefaultDashboard), ...JSON.parse(saved) };
+}
+
+function saveStaticDashboard(data) {
+  localStorage.setItem(staticDashboardKey, JSON.stringify(data));
+}
+
+function staticClass(data, classId) {
+  return data.classes.find((item) => item.id === classId) || data.classes[0] || {};
+}
+
+function staticStudent(data, studentId) {
+  return data.students.find((item) => item.id === studentId) || data.students[0] || {};
+}
+
+function staticCollectionForUrl(path) {
+  if (path.includes("/grades")) return "grades";
+  if (path.includes("/homework")) return "homework";
+  if (path.includes("/classwork")) return "classwork";
+  if (path.includes("/schedules")) return "schedules";
+  if (path.includes("/attendance") && !path.includes("daily") && !path.includes("lesson")) return "attendance";
+  if (path.includes("/notes")) return "notes";
+  if (path.includes("/notices")) return "notices";
+  if (path.includes("/report-cards")) return "reportCards";
+  if (path.includes("/early-exits")) return "earlyExits";
+  if (path.includes("/justifications")) return "justifications";
+  if (path.includes("/teachers")) return "teachers";
+  if (path.includes("/classes")) return "classes";
+  if (path.includes("/students")) return "students";
+  return "";
+}
+
+function enrichStaticRecord(data, collection, payload) {
+  const item = { ...payload };
+  if (item.classId) {
+    const schoolClass = staticClass(data, item.classId);
+    item.className = schoolClass.name || item.className || "";
   }
-  return response.json();
+  if (item.studentId) {
+    const student = staticStudent(data, item.studentId);
+    item.studentName = student.name || item.studentName || "";
+    item.classId = student.classId || item.classId || "";
+    item.className = student.className || item.className || "";
+  }
+  if (collection === "students") {
+    const schoolClass = staticClass(data, item.classId);
+    item.className = schoolClass.name || "";
+    item.average = Number.parseFloat(item.average) || 0;
+    item.absences = item.absences || 0;
+    item.delays = item.delays || 0;
+    item.notes = item.notes || 0;
+  }
+  if (collection === "grades") {
+    item.value = String(item.value || "").trim();
+  }
+  return item;
+}
+
+async function staticApiRequest(url, options = {}) {
+  const method = (options.method || "GET").toUpperCase();
+  const path = new URL(url, window.location.href).pathname;
+  const data = staticDashboard();
+  const payload = options.body ? JSON.parse(options.body) : {};
+
+  if (path.endsWith("/api/status")) {
+    return { ok: true, database: "demo", mode: "Dati salvati nel browser", email: "not-configured" };
+  }
+  if (path.endsWith("/api/dashboard")) {
+    return data;
+  }
+
+  if (path.includes("/daily-attendance")) {
+    if (method === "DELETE") {
+      const [, classId, date] = path.match(/daily-attendance\/([^/]+)\/([^/]+)/) || [];
+      data.dailyAttendance = data.dailyAttendance.filter((item) => !(item.classId === classId && item.date === date));
+      data.lessonAttendance = data.lessonAttendance.filter((item) => !(item.classId === classId && item.date === date));
+      saveStaticDashboard(data);
+      return { ok: true };
+    }
+    const schoolClass = staticClass(data, payload.classId);
+    const record = { id: staticId("daily"), className: schoolClass.name || "", ...payload };
+    data.dailyAttendance = data.dailyAttendance.filter((item) => !(item.classId === record.classId && item.date === record.date));
+    data.dailyAttendance.unshift(record);
+    saveStaticDashboard(data);
+    return record;
+  }
+
+  if (path.includes("/lesson-attendance")) {
+    const schoolClass = staticClass(data, payload.classId);
+    const record = { id: staticId("lesson"), className: schoolClass.name || "", ...payload };
+    data.lessonAttendance = data.lessonAttendance.filter((item) => !(item.classId === record.classId && item.scheduleId === record.scheduleId && item.date === record.date));
+    data.lessonAttendance.unshift(record);
+    saveStaticDashboard(data);
+    return record;
+  }
+
+  const collection = staticCollectionForUrl(path);
+  if (!collection) return { ok: true };
+
+  const id = decodeURIComponent(path.split("/").pop() || "");
+  if (method === "DELETE") {
+    data[collection] = data[collection].filter((item) => String(item.id || item._id) !== id);
+    saveStaticDashboard(data);
+    return { ok: true, removed: id };
+  }
+
+  if (method === "POST" || method === "PUT") {
+    const existingIndex = method === "PUT" || !path.endsWith(collection)
+      ? data[collection].findIndex((item) => String(item.id || item._id) === id)
+      : -1;
+    const record = enrichStaticRecord(data, collection, {
+      id: existingIndex >= 0 ? data[collection][existingIndex].id : staticId(collection),
+      ...(existingIndex >= 0 ? data[collection][existingIndex] : {}),
+      ...payload,
+      updatedAt: new Date().toISOString(),
+      createdAt: existingIndex >= 0 ? data[collection][existingIndex].createdAt : new Date().toISOString()
+    });
+    if (existingIndex >= 0) {
+      data[collection][existingIndex] = record;
+    } else {
+      data[collection].unshift(record);
+    }
+    if (collection === "classes") state.selectedClassId = record.id;
+    saveStaticDashboard(data);
+    return record;
+  }
+
+  return data[collection];
+}
+
+async function fetchJson(url, options) {
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      if (url.startsWith("/api/") && response.status === 404) {
+        return staticApiRequest(url, options);
+      }
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || `Errore HTTP ${response.status}`);
+    }
+    return response.json();
+  } catch (error) {
+    if (url.startsWith("/api/")) {
+      return staticApiRequest(url, options);
+    }
+    throw error;
+  }
 }
 
 function currentClass() {
