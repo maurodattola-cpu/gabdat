@@ -1,10 +1,11 @@
-const CACHE_NAME = "my-class-v28";
+const CACHE_NAME = "my-class-v29";
+const APP_ROOT = new URL("./", self.registration.scope).pathname;
 const APP_SHELL = [
-  "/",
-  "/styles.css?v=28",
-  "/app.js?v=28",
-  "/manifest.webmanifest?v=28",
-  "/icon.svg?v=28"
+  APP_ROOT,
+  `${APP_ROOT}styles.css?v=29`,
+  `${APP_ROOT}app.js?v=29`,
+  `${APP_ROOT}manifest.webmanifest?v=29`,
+  `${APP_ROOT}icon.svg?v=29`
 ];
 
 self.addEventListener("install", (event) => {
@@ -32,7 +33,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (url.pathname.startsWith("/api/")) {
-    event.respondWith(fetch(request).catch(() => caches.match("/")));
+    event.respondWith(fetch(request).catch(() => caches.match(APP_ROOT)));
     return;
   }
 
@@ -40,9 +41,9 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request).then((response) => {
         const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put("/", copy));
+        caches.open(CACHE_NAME).then((cache) => cache.put(APP_ROOT, copy));
         return response;
-      }).catch(() => caches.match("/"))
+      }).catch(() => caches.match(APP_ROOT))
     );
     return;
   }
@@ -52,6 +53,6 @@ self.addEventListener("fetch", (event) => {
       const copy = response.clone();
       caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
       return response;
-    }).catch(() => caches.match(request).then((cached) => cached || caches.match("/")))
+    }).catch(() => caches.match(request).then((cached) => cached || caches.match(APP_ROOT)))
   );
 });

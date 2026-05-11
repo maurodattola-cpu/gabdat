@@ -2317,7 +2317,7 @@ setInterval(() => {
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {
+    navigator.serviceWorker.register("sw.js").catch(() => {
       // The app still works in browsers that block service workers locally.
     });
   });
