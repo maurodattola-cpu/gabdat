@@ -14,6 +14,25 @@ const state = {
 
 let deferredInstallPrompt = null;
 
+const appBasePath = (() => {
+  const scriptPath = document.currentScript ? new URL(document.currentScript.src).pathname : "/app.js";
+  return scriptPath.endsWith("/app.js") ? scriptPath.slice(0, -"app.js".length) : "/";
+})();
+
+function routeUrl(route) {
+  const normalizedRoute = route.startsWith("/") ? route : `/${route}`;
+  if (appBasePath === "/") return normalizedRoute;
+  return `${appBasePath.slice(0, -1)}${normalizedRoute}`;
+}
+
+function currentRoutePath() {
+  const path = window.location.pathname;
+  if (appBasePath !== "/" && path.startsWith(appBasePath)) {
+    return path.slice(appBasePath.length - 1) || "/";
+  }
+  return path || "/";
+}
+
 const shortDate = (value) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : formatDate.format(date);
@@ -1481,15 +1500,15 @@ function setDefaultDates() {
 }
 
 function showActiveArea() {
-  const path = window.location.pathname;
+  const path = currentRoutePath();
   const usernameRole = loginRoleForUsername(state.username);
   const needsLogin = path === "/studenti" || path === "/insegnanti";
   const wrongRole = (path === "/studenti" && usernameRole !== "studenti") || (path === "/insegnanti" && usernameRole !== "insegnanti");
   if (needsLogin && (!state.username || wrongRole)) {
-    window.history.replaceState({}, "", "/");
+    window.history.replaceState({}, "", routeUrl("/"));
   }
 
-  const activePath = window.location.pathname;
+  const activePath = currentRoutePath();
   const isHome = activePath === "/";
   const isTeacher = activePath === "/insegnanti";
   const isStudent = activePath === "/studenti";
@@ -1500,7 +1519,7 @@ function showActiveArea() {
   document.querySelector("#insegnanti").classList.toggle("hidden-view", !isTeacher);
 
   document.querySelectorAll(".nav a").forEach((link) => {
-    const target = link.getAttribute("href");
+    const target = link.dataset.route || link.getAttribute("href");
     link.classList.toggle("active", target === activePath);
   });
   renderSessionStatus();
@@ -1510,7 +1529,7 @@ document.querySelector("#logoutButton").addEventListener("click", () => {
   state.username = "";
   localStorage.removeItem("gabdat-username");
   document.querySelector("#loginUsername").value = "";
-  window.history.pushState({}, "", "/");
+  window.history.pushState({}, "", routeUrl("/"));
   showActiveArea();
 });
 
@@ -1631,7 +1650,7 @@ document.querySelector("#loginForm").addEventListener("submit", (event) => {
   error.textContent = "";
   state.username = username.toUpperCase();
   localStorage.setItem("gabdat-username", state.username);
-  window.history.pushState({}, "", `/${allowedRole}`);
+  window.history.pushState({}, "", routeUrl(`/${allowedRole}`));
   showActiveArea();
 });
 
@@ -2471,16 +2490,19 @@ document.querySelector("#noticeForm").addEventListener("submit", async (event) =
 });
 
 document.querySelectorAll(".nav a").forEach((link) => {
+  const route = link.getAttribute("href");
+  link.dataset.route = route;
+  link.setAttribute("href", routeUrl(route));
   link.addEventListener("click", (event) => {
     event.preventDefault();
-    window.history.pushState({}, "", link.getAttribute("href"));
+    window.history.pushState({}, "", routeUrl(route));
     showActiveArea();
   });
 });
 
 const bachecaObserver = new IntersectionObserver((entries) => {
   const entry = entries[0];
-  if (entry?.isIntersecting && window.location.pathname === "/studenti") {
+  if (entry?.isIntersecting && currentRoutePath() === "/studenti") {
     markCurrentStudentNoticesRead();
   }
 }, { threshold: 0.6 });
@@ -2488,7 +2510,7 @@ bachecaObserver.observe(document.querySelector("#bacheca"));
 
 const homeworkObserver = new IntersectionObserver((entries) => {
   const entry = entries[0];
-  if (entry?.isIntersecting && window.location.pathname === "/studenti") {
+  if (entry?.isIntersecting && currentRoutePath() === "/studenti") {
     markCurrentStudentHomeworkRead();
   }
 }, { threshold: 0.6 });
@@ -2496,7 +2518,7 @@ homeworkObserver.observe(document.querySelector("#compiti"));
 
 const classworkObserver = new IntersectionObserver((entries) => {
   const entry = entries[0];
-  if (entry?.isIntersecting && window.location.pathname === "/studenti") {
+  if (entry?.isIntersecting && currentRoutePath() === "/studenti") {
     markCurrentStudentClassworkRead();
   }
 }, { threshold: 0.6 });
@@ -2504,7 +2526,7 @@ classworkObserver.observe(document.querySelector("#svolto"));
 
 const noteObserver = new IntersectionObserver((entries) => {
   const entry = entries[0];
-  if (entry?.isIntersecting && window.location.pathname === "/studenti") {
+  if (entry?.isIntersecting && currentRoutePath() === "/studenti") {
     markCurrentStudentNotesRead();
   }
 }, { threshold: 0.6 });
@@ -2512,6 +2534,7 @@ noteObserver.observe(document.querySelector("#note"));
 
 setDefaultDates();
 resetReportSubjects();
+document.querySelector(".brand").setAttribute("href", routeUrl("/"));
 document.querySelector("#loginUsername").value = state.username;
 window.addEventListener("popstate", showActiveArea);
 showActiveArea();
