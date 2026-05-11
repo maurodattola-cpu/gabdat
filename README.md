@@ -33,3 +33,21 @@ http://localhost:3000
 ```
 
 Se `MONGODB_URI` non e configurato, il sito usa dati demo locali.
+
+## Email notifiche
+
+Quando un docente pubblica una comunicazione, il server puo inviare anche una email ai destinatari configurati.
+
+Nel file `.env` aggiungi:
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=la-tua-email@gmail.com
+SMTP_PASS=la-password-app
+NOTIFICATION_EMAIL_FROM=GabDat <la-tua-email@gmail.com>
+NOTIFICATION_EMAIL_TO=destinatario1@gmail.com,destinatario2@gmail.com
+```
+
+Con Gmail devi usare una password per app, non la password normale dell'account.

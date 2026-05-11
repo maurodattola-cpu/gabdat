@@ -883,6 +883,44 @@ select {
   overflow-x: auto;
 }
 
+.teacher-grades-table-wrap {
+  overflow-x: auto;
+}
+
+.teacher-grades-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+}
+
+.teacher-grades-table th,
+.teacher-grades-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.teacher-grades-table th {
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.teacher-grades-table td > span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.compact-grade {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  font-size: 1rem;
+}
+
 .student-table {
   width: 100%;
   min-width: 680px;

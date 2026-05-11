@@ -88,6 +88,21 @@ function currentClassStudents() {
   return state.data.students.filter((student) => student.classId === schoolClass?.id || student.className === schoolClass?.name);
 }
 
+function itemMatchesClass(item, schoolClass, classStudentIds = new Set()) {
+  if (!item || !schoolClass) return false;
+  return item.classId === schoolClass.id || item.className === schoolClass.name || classStudentIds.has(item.studentId);
+}
+
+function homeworkAppliesToStudent(homework, student) {
+  if (!homework || !student) return false;
+  return homework.classId === student.classId || homework.className === student.className;
+}
+
+function noticeAppliesToStudent(notice, student) {
+  if (!notice || !student) return false;
+  return notice.classId === student.classId || notice.className === student.className;
+}
+
 function selectedStudent() {
   const select = document.querySelector("#studentSelect");
   return state.data.students.find((student) => student.id === select.value) || currentClassStudents()[0] || null;
@@ -105,6 +120,7 @@ function fillStudentForm(student) {
   }
   form.elements.studentId.value = student.id;
   form.elements.name.value = student.name;
+  form.elements.email.value = student.email || "";
   form.elements.classId.value = student.classId;
   form.elements.average.value = student.average;
 }
@@ -196,7 +212,7 @@ function renderClassTeacherOptions() {
 
 function renderStudentOptions() {
   const classStudents = currentClassStudents();
-  const students = classStudents.length ? classStudents : state.data.students;
+  const students = classStudents;
   const options = optionList(students);
 
   ["#studentSelect", "#attendanceStudentSelect", "#reportStudentSelect", "#gradeStudentSelect"].forEach((selector) => {
@@ -393,7 +409,13 @@ function renderClassStudentTable() {
 }
 
 function renderTeacherRegister() {
-  document.querySelector("#teacherRegisterList").innerHTML = state.data.attendance.slice(0, 6).map((item) => `
+  const schoolClass = currentClass();
+  const classStudentIds = new Set(currentClassStudents().map((student) => student.id));
+  const attendance = [...(state.data.attendance || [])]
+    .filter((item) => itemMatchesClass(item, schoolClass, classStudentIds))
+    .sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
+
+  document.querySelector("#teacherRegisterList").innerHTML = attendance.slice(0, 6).map((item) => `
     <article class="register-item">
       <span class="${attendanceStatusClass(item.type)}">${escapeHtml(item.type)}</span>
       <div>
@@ -408,27 +430,60 @@ function renderTeacherRegister() {
 }
 
 function renderTeacherGrades() {
-  document.querySelector("#teacherGradesList").innerHTML = state.data.grades.slice(0, 8).map((grade) => `
-    <article class="grade-row">
-      <span class="${gradeValueClass(grade.value)}">${escapeHtml(grade.value)}</span>
-      <div>
-        <strong>${escapeHtml(grade.studentName || "Studente")} - ${escapeHtml(grade.subject)}</strong>
-        <div class="meta">${escapeHtml(grade.type)} - ${escapeHtml(grade.teacher || "Docente")} - ${escapeHtml(shortDate(grade.date))}</div>
-        ${grade.explanation ? `<div class="meta">${escapeHtml(grade.explanation)}</div>` : ""}
-      </div>
-      <div class="row-actions">
-        <button class="dots-button" type="button" aria-label="Azioni voto" data-grade-menu-toggle="${escapeHtml(grade.id)}">...</button>
-        <div class="row-menu" data-grade-menu="${escapeHtml(grade.id)}">
-          <button class="neutral-menu-action" type="button" data-edit-grade="${escapeHtml(grade.id)}">Modifica voto</button>
-          <button type="button" data-remove-grade="${escapeHtml(grade.id)}">Elimina voto</button>
-        </div>
-      </div>
-    </article>
-  `).join("");
+  const schoolClass = currentClass();
+  const classStudentIds = new Set(currentClassStudents().map((student) => student.id));
+  const grades = [...(state.data.grades || [])]
+    .filter((grade) => itemMatchesClass(grade, schoolClass, classStudentIds))
+    .sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
+
+  document.querySelector("#teacherGradesList").innerHTML = grades.length ? `
+    <table class="teacher-grades-table">
+      <thead>
+        <tr>
+          <th>Alunno</th>
+          <th>Materia</th>
+          <th>Voto</th>
+          <th>Tipo</th>
+          <th>Quadrimestre</th>
+          <th>Data</th>
+          <th>Docente</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${grades.map((grade) => `
+          <tr>
+            <td>
+              <strong>${escapeHtml(grade.studentName || "Studente")}</strong>
+              ${grade.explanation ? `<span>${escapeHtml(grade.explanation)}</span>` : ""}
+            </td>
+            <td>${escapeHtml(grade.subject)}</td>
+            <td><span class="${gradeValueClass(grade.value)} compact-grade">${escapeHtml(grade.value)}</span></td>
+            <td>${escapeHtml(grade.type)}</td>
+            <td>${escapeHtml(grade.term || "Nessuno")}</td>
+            <td>${escapeHtml(shortDate(grade.date))}</td>
+            <td>${escapeHtml(grade.teacher || "Docente")}</td>
+            <td>
+              <div class="row-actions">
+                <button class="dots-button" type="button" aria-label="Azioni voto" data-grade-menu-toggle="${escapeHtml(grade.id)}">...</button>
+                <div class="row-menu" data-grade-menu="${escapeHtml(grade.id)}">
+                  <button class="neutral-menu-action" type="button" data-edit-grade="${escapeHtml(grade.id)}">Modifica voto</button>
+                  <button type="button" data-remove-grade="${escapeHtml(grade.id)}">Elimina voto</button>
+                </div>
+              </div>
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  ` : `<article class="notice"><strong>Nessun voto</strong><span>I voti della classe selezionata compariranno qui.</span></article>`;
 }
 
 function renderTeacherEarlyExits() {
-  const exits = state.data.earlyExits || [];
+  const schoolClass = currentClass();
+  const exits = [...(state.data.earlyExits || [])]
+    .filter((item) => itemMatchesClass(item, schoolClass))
+    .sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
   document.querySelector("#teacherEarlyExitsList").innerHTML = exits.map((item) => `
     <article class="notice">
       <strong>${escapeHtml(item.studentName)} - ${escapeHtml(item.className)}</strong>
@@ -454,7 +509,9 @@ function renderTeacherJustifications() {
 }
 
 function renderTeacherNotices() {
+  const schoolClass = currentClass();
   const notices = [...(state.data.notices || [])]
+    .filter((notice) => itemMatchesClass(notice, schoolClass))
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
   document.querySelector("#teacherNoticesList").innerHTML = notices.map((notice) => `
     <article class="notice">
@@ -470,7 +527,9 @@ function renderTeacherNotices() {
 }
 
 function renderTeacherHomework() {
+  const schoolClass = currentClass();
   const homework = [...(state.data.homework || [])]
+    .filter((item) => itemMatchesClass(item, schoolClass))
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
   document.querySelector("#teacherHomeworkList").innerHTML = homework.map((item) => `
     <article class="task">
@@ -554,7 +613,7 @@ function homeworkId(homework) {
 }
 
 function gradeKey(grade) {
-  return grade.id || grade._id || `${grade.studentId}|${grade.subject}|${grade.value}|${grade.type}|${grade.date}|${grade.createdAt || ""}`;
+  return grade.id || grade._id || `${grade.studentId}|${grade.subject}|${grade.value}|${grade.type}|${grade.term || ""}|${grade.date}|${grade.createdAt || ""}`;
 }
 
 function noteKey(note) {
@@ -650,14 +709,20 @@ function saveReadNoteKeys(studentId, keys) {
 }
 
 function markAllNoticesRead(studentId) {
+  const student = state.data.students.find((item) => item.id === studentId);
   const keys = readNoticeKeys(studentId);
-  (state.data.notices || []).forEach((notice) => keys.add(noticeKey(notice)));
+  (state.data.notices || [])
+    .filter((notice) => noticeAppliesToStudent(notice, student))
+    .forEach((notice) => keys.add(noticeKey(notice)));
   saveReadNoticeKeys(studentId, keys);
 }
 
 function markAllHomeworkRead(studentId) {
+  const student = state.data.students.find((item) => item.id === studentId);
   const keys = readHomeworkKeys(studentId);
-  (state.data.homework || []).forEach((homework) => keys.add(homeworkKey(homework)));
+  (state.data.homework || [])
+    .filter((homework) => homeworkAppliesToStudent(homework, student))
+    .forEach((homework) => keys.add(homeworkKey(homework)));
   saveReadHomeworkKeys(studentId, keys);
 }
 
@@ -688,13 +753,19 @@ function markAllNotesRead(studentId) {
 }
 
 function hasUnreadNotices(studentId) {
+  const student = state.data?.students?.find((item) => item.id === studentId);
   const readKeys = readNoticeKeys(studentId);
-  return (state.data?.notices || []).some((notice) => !readKeys.has(noticeKey(notice)));
+  return (state.data?.notices || [])
+    .filter((notice) => noticeAppliesToStudent(notice, student))
+    .some((notice) => !readKeys.has(noticeKey(notice)));
 }
 
 function hasUnreadHomework(studentId) {
+  const student = state.data?.students?.find((item) => item.id === studentId);
   const readKeys = readHomeworkKeys(studentId);
-  return (state.data?.homework || []).some((homework) => !readKeys.has(homeworkKey(homework)));
+  return (state.data?.homework || [])
+    .filter((homework) => homeworkAppliesToStudent(homework, student))
+    .some((homework) => !readKeys.has(homeworkKey(homework)));
 }
 
 function hasUnreadClasswork(studentId) {
@@ -1014,7 +1085,13 @@ function renderTeacherSchedule() {
 }
 
 function renderReportCards() {
-  document.querySelector("#reportCardsList").innerHTML = state.data.reportCards.slice(0, 6).map((card) => `
+  const schoolClass = currentClass();
+  const classStudentIds = new Set(currentClassStudents().map((student) => student.id));
+  const reportCards = [...(state.data.reportCards || [])]
+    .filter((card) => itemMatchesClass(card, schoolClass, classStudentIds))
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+
+  document.querySelector("#reportCardsList").innerHTML = reportCards.slice(0, 6).map((card) => `
     <article class="report-card-row">
       <strong>${escapeHtml(card.studentName)}</strong>
       <span>${escapeHtml(card.term)} - ${escapeHtml(card.outcome)}</span>
@@ -1094,7 +1171,7 @@ function renderDashboard(data) {
       <span class="${gradeValueClass(grade.value)}">${escapeHtml(grade.value)}</span>
       <div>
         <strong>${escapeHtml(grade.subject)}</strong>
-        <div class="meta">${escapeHtml(grade.type)} - ${escapeHtml(grade.teacher || "Docente")} - ${escapeHtml(shortDate(grade.date))}</div>
+        <div class="meta">${escapeHtml(grade.type)} - ${escapeHtml(grade.term || "Nessun quadrimestre")} - ${escapeHtml(grade.teacher || "Docente")} - ${escapeHtml(shortDate(grade.date))}</div>
         ${grade.explanation ? `<div class="meta">${escapeHtml(grade.explanation)}</div>` : ""}
       </div>
       <span class="meta">${gradeOutcome(grade.value)}</span>
@@ -1113,6 +1190,7 @@ function renderDashboard(data) {
   `).join("") || `<article class="notice"><strong>Nessuna lezione</strong><span>Le lezioni della tua classe compariranno qui.</span></article>`;
 
   const homework = [...(data.homework || [])]
+    .filter((item) => homeworkAppliesToStudent(item, student))
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
   renderHomeworkAlerts(homework, student);
   document.querySelector("#homeworkList").innerHTML = homework.map((item) => `
@@ -1130,6 +1208,7 @@ function renderDashboard(data) {
   `).join("") || `<article class="notice"><strong>Nessun compito</strong><span>I compiti assegnati compariranno qui.</span></article>`;
 
   const notices = [...(data.notices || [])]
+    .filter((notice) => noticeAppliesToStudent(notice, student))
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
   renderNoticeAlerts(notices, student);
   document.querySelector("#noticesList").innerHTML = notices.map((notice) => `
@@ -1433,6 +1512,7 @@ document.querySelector("#teacherGradesList").addEventListener("click", async (ev
     form.elements.subject.value = grade.subject || "";
     form.elements.value.value = grade.value || "";
     form.elements.type.value = grade.type || "Verifica";
+    form.elements.term.value = grade.term || "";
     form.elements.explanation.value = grade.explanation || "";
     form.elements.teacher.value = grade.teacher || "";
     form.elements.date.value = grade.date || today();
@@ -1774,6 +1854,7 @@ document.querySelector("#studentCreator").addEventListener("submit", async (even
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       name: formData.get("name"),
+      email: formData.get("email"),
       classId: formData.get("classId"),
       schoolYear: formData.get("schoolYear")
     })
@@ -1794,6 +1875,7 @@ document.querySelector("#studentForm").addEventListener("submit", async (event) 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       name: formData.get("name"),
+      email: formData.get("email"),
       classId: formData.get("classId"),
       className: schoolClass?.name || "",
       average: formData.get("average")
@@ -1817,6 +1899,7 @@ document.querySelector("#gradeForm").addEventListener("submit", async (event) =>
       subject: formData.get("subject"),
       value: formData.get("value"),
       type: formData.get("type"),
+      term: formData.get("term"),
       explanation: formData.get("explanation"),
       teacher: formData.get("teacher"),
       date: formData.get("date")
@@ -1940,6 +2023,7 @@ document.querySelector("#homeworkForm").addEventListener("submit", async (event)
     body: JSON.stringify({
       subject: formData.get("subject"),
       title: formData.get("title"),
+      classId: state.selectedClassId,
       dueDate: formData.get("dueDate"),
       attachmentName: file?.name || "",
       attachmentType: file?.type || "",
@@ -2165,6 +2249,7 @@ document.querySelector("#noticeForm").addEventListener("submit", async (event) =
     body: JSON.stringify({
       title: formData.get("title"),
       body: formData.get("body"),
+      classId: state.selectedClassId,
       priority: formData.get("priority")
     })
   });

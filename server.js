@@ -1,5 +1,6 @@
 const express = require("express");
 const path = require("path");
+const nodemailer = require("nodemailer");
 const { MongoClient, ObjectId, ServerApiVersion } = require("mongodb");
 require("dotenv").config();
 
@@ -7,9 +8,14 @@ const app = express();
 const port = process.env.PORT || 3000;
 const mongoUri = process.env.MONGODB_URI;
 const dbName = process.env.MONGODB_DB || "gabdat";
+const smtpPort = Number(process.env.SMTP_PORT || 587);
+const defaultMailRecipients = splitEnvList(process.env.NOTIFICATION_EMAIL_TO);
 
 let client;
 let db;
+let mongoConnectionError;
+let mongoConnectionDisabled = false;
+let mailTransporter;
 
 const demoData = {
   teachers: [
@@ -23,6 +29,7 @@ const demoData = {
   student: {
     id: "stu-1",
     name: "Gabriele Dattola",
+    email: "",
     className: "3B Informatica",
     schoolYear: "2025/2026",
     average: 8.1,
@@ -35,6 +42,7 @@ const demoData = {
     {
       id: "stu-1",
       name: "Gabriele Dattola",
+      email: "",
       classId: "class-3b-inf",
       className: "3B Informatica",
       schoolYear: "2025/2026",
@@ -47,6 +55,7 @@ const demoData = {
     {
       id: "stu-2",
       name: "Luca Ferri",
+      email: "",
       classId: "class-3b-inf",
       className: "3B Informatica",
       schoolYear: "2025/2026",
@@ -59,6 +68,7 @@ const demoData = {
     {
       id: "stu-3",
       name: "Sara Romano",
+      email: "",
       classId: "class-3b-inf",
       className: "3B Informatica",
       schoolYear: "2025/2026",
@@ -70,15 +80,15 @@ const demoData = {
     }
   ],
   grades: [
-    { subject: "Matematica", value: 8, type: "Verifica", date: "2026-04-22", teacher: "Prof. Marino" },
-    { subject: "Informatica", value: 9, type: "Laboratorio", date: "2026-04-18", teacher: "Prof.ssa Greco" },
-    { subject: "Italiano", value: 7, type: "Interrogazione", date: "2026-04-15", teacher: "Prof. Rizzo" },
-    { subject: "Inglese", value: 8.5, type: "Reading", date: "2026-04-10", teacher: "Prof.ssa Costa" }
+    { subject: "Matematica", value: 8, type: "Verifica", term: "", date: "2026-04-22", teacher: "Prof. Marino", studentId: "stu-1", studentName: "Gabriele Dattola", classId: "class-3b-inf", className: "3B Informatica" },
+    { subject: "Informatica", value: 9, type: "Laboratorio", term: "", date: "2026-04-18", teacher: "Prof.ssa Greco", studentId: "stu-1", studentName: "Gabriele Dattola", classId: "class-3b-inf", className: "3B Informatica" },
+    { subject: "Italiano", value: 7, type: "Interrogazione", term: "", date: "2026-04-15", teacher: "Prof. Rizzo", studentId: "stu-1", studentName: "Gabriele Dattola", classId: "class-3b-inf", className: "3B Informatica" },
+    { subject: "Inglese", value: 8.5, type: "Reading", term: "", date: "2026-04-10", teacher: "Prof.ssa Costa", studentId: "stu-1", studentName: "Gabriele Dattola", classId: "class-3b-inf", className: "3B Informatica" }
   ],
   homework: [
-    { subject: "Informatica", title: "Completare esercizio su API REST", dueDate: "2026-05-04", done: false },
-    { subject: "Matematica", title: "Studio funzioni: pag. 112 esercizi 8-12", dueDate: "2026-05-03", done: false },
-    { subject: "Italiano", title: "Scheda su Pirandello", dueDate: "2026-05-06", done: true }
+    { id: "homework-1", classId: "class-3b-inf", className: "3B Informatica", subject: "Informatica", title: "Completare esercizio su API REST", dueDate: "2026-05-04", done: false },
+    { id: "homework-2", classId: "class-3b-inf", className: "3B Informatica", subject: "Matematica", title: "Studio funzioni: pag. 112 esercizi 8-12", dueDate: "2026-05-03", done: false },
+    { id: "homework-3", classId: "class-3b-inf", className: "3B Informatica", subject: "Italiano", title: "Scheda su Pirandello", dueDate: "2026-05-06", done: true }
   ],
   classwork: [
     { id: "classwork-1", classId: "class-3b-inf", className: "3B Informatica", subject: "Informatica", date: "2026-05-01", body: "Ripasso API REST e gestione delle risposte JSON.", teacher: "Prof.ssa Greco", createdAt: "2026-05-01T11:00:00.000Z" }
@@ -95,8 +105,8 @@ const demoData = {
     { id: "schedule-3", classId: "class-2a-inf", className: "2A Informatica", day: "Martedi", time: "10:00", endTime: "11:00", subject: "Inglese", room: "Aula 8", teacher: "Prof.ssa Costa" }
   ],
   notices: [
-    { title: "Uscita didattica", body: "Consegnare autorizzazione firmata entro venerdi.", priority: "Alta" },
-    { title: "Ricevimento docenti", body: "Prenotazioni aperte dall'area famiglia.", priority: "Media" }
+    { id: "notice-1", classId: "class-3b-inf", className: "3B Informatica", title: "Uscita didattica", body: "Consegnare autorizzazione firmata entro venerdi.", priority: "Alta" },
+    { id: "notice-2", classId: "class-3b-inf", className: "3B Informatica", title: "Ricevimento docenti", body: "Prenotazioni aperte dall'area famiglia.", priority: "Media" }
   ],
   attendance: [
     { studentId: "stu-1", studentName: "Gabriele Dattola", type: "Assenza", date: "2026-04-29", details: "Assenza da giustificare" },
@@ -170,15 +180,31 @@ const demoData = {
 };
 
 app.use(express.json({ limit: "10mb" }));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), {
+  setHeaders: (res, filePath) => {
+    if (/\.(html|js|css|webmanifest)$/.test(filePath)) {
+      res.setHeader("Cache-Control", "no-store");
+    }
+  }
+}));
 
 async function connectDb() {
   if (!mongoUri || mongoUri.includes("<db_password>")) {
     return null;
   }
 
-  if (!client) {
+  if (mongoConnectionDisabled) {
+    return null;
+  }
+
+  if (db) {
+    return db;
+  }
+
+  try {
     client = new MongoClient(mongoUri, {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000,
       serverApi: {
         version: ServerApiVersion.v1,
         strict: true,
@@ -187,6 +213,19 @@ async function connectDb() {
     });
     await client.connect();
     db = client.db(dbName);
+    mongoConnectionError = null;
+  } catch (error) {
+    mongoConnectionError = error.message;
+    mongoConnectionDisabled = true;
+    db = null;
+
+    if (client) {
+      await client.close().catch(() => {});
+      client = null;
+    }
+
+    console.warn(`MongoDB non raggiungibile, uso dati demo: ${mongoConnectionError}`);
+    return null;
   }
 
   return db;
@@ -208,6 +247,172 @@ const slug = (value) => String(value || "")
 
 const makeId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 
+function splitEnvList(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function escapeEmailHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function isEmailServerConfigured() {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+}
+
+function isEmailConfigured() {
+  return isEmailServerConfigured();
+}
+
+function mailRecipientsFor(...values) {
+  return [...new Set([...defaultMailRecipients, ...values.flatMap(splitEnvList)])];
+}
+
+function getMailTransporter() {
+  if (mailTransporter) return mailTransporter;
+
+  mailTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: smtpPort,
+    secure: process.env.SMTP_SECURE === "true" || smtpPort === 465,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    },
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 10000
+  });
+
+  return mailTransporter;
+}
+
+async function sendNoticeEmail(notice, students = []) {
+  const recipients = mailRecipientsFor(...students.map((student) => student?.email));
+  if (!isEmailServerConfigured() || !recipients.length) {
+    return { sent: false, reason: "Email non configurata" };
+  }
+
+  const from = process.env.NOTIFICATION_EMAIL_FROM || process.env.SMTP_USER;
+  const subject = `[GabDat] ${notice.title}`;
+  const createdAt = notice.createdAt instanceof Date ? notice.createdAt : new Date(notice.createdAt || Date.now());
+  const text = [
+    notice.title,
+    "",
+    notice.body,
+    "",
+    `Priorita: ${notice.priority || "Media"}`,
+    `Data: ${createdAt.toLocaleString("it-IT")}`
+  ].join("\n");
+  const html = `
+    <h2>${escapeEmailHtml(notice.title)}</h2>
+    <p>${escapeEmailHtml(notice.body).replace(/\n/g, "<br>")}</p>
+    <p><strong>Priorita:</strong> ${escapeEmailHtml(notice.priority || "Media")}</p>
+    <p><strong>Data:</strong> ${escapeEmailHtml(createdAt.toLocaleString("it-IT"))}</p>
+  `;
+
+  await getMailTransporter().sendMail({
+    from,
+    to: recipients,
+    subject,
+    text,
+    html
+  });
+
+  return { sent: true };
+}
+
+async function sendGradeEmail(grade, student) {
+  const recipients = mailRecipientsFor(student?.email);
+  if (!isEmailServerConfigured() || !recipients.length) {
+    return { sent: false, reason: "Email non configurata" };
+  }
+
+  const from = process.env.NOTIFICATION_EMAIL_FROM || process.env.SMTP_USER;
+  const subject = `[GabDat] Nuovo voto di ${grade.subject}`;
+  const text = [
+    `Ciao ${grade.studentName},`,
+    "",
+    `E stato inserito un nuovo voto in ${grade.subject}: ${grade.value}`,
+    `Tipo: ${grade.type}`,
+    `Quadrimestre: ${grade.term || "Nessuno"}`,
+    `Docente: ${grade.teacher}`,
+    `Data: ${grade.date}`,
+    grade.explanation ? `Spiegazione: ${grade.explanation}` : "",
+    "",
+    "Accedi a GabDat per vedere il registro completo."
+  ].filter(Boolean).join("\n");
+  const html = `
+    <h2>Nuovo voto in ${escapeEmailHtml(grade.subject)}</h2>
+    <p>Ciao ${escapeEmailHtml(grade.studentName)}, e stato inserito un nuovo voto.</p>
+    <p><strong>Voto:</strong> ${escapeEmailHtml(grade.value)}</p>
+    <p><strong>Tipo:</strong> ${escapeEmailHtml(grade.type)}</p>
+    <p><strong>Quadrimestre:</strong> ${escapeEmailHtml(grade.term || "Nessuno")}</p>
+    <p><strong>Docente:</strong> ${escapeEmailHtml(grade.teacher)}</p>
+    <p><strong>Data:</strong> ${escapeEmailHtml(grade.date)}</p>
+    ${grade.explanation ? `<p><strong>Spiegazione:</strong> ${escapeEmailHtml(grade.explanation)}</p>` : ""}
+    <p>Accedi a GabDat per vedere il registro completo.</p>
+  `;
+
+  await getMailTransporter().sendMail({
+    from,
+    to: recipients,
+    subject,
+    text,
+    html
+  });
+
+  return { sent: true };
+}
+
+async function sendNotificationEmail({ subject, title, body, students = [] }) {
+  const recipients = mailRecipientsFor(...students.map((student) => student?.email));
+  if (!isEmailServerConfigured() || !recipients.length) {
+    return { sent: false, reason: "Email non configurata" };
+  }
+
+  const from = process.env.NOTIFICATION_EMAIL_FROM || process.env.SMTP_USER;
+  const text = [title, "", body, "", "Accedi a GabDat per vedere i dettagli."].join("\n");
+  const html = `
+    <h2>${escapeEmailHtml(title)}</h2>
+    <p>${escapeEmailHtml(body).replace(/\n/g, "<br>")}</p>
+    <p>Accedi a GabDat per vedere i dettagli.</p>
+  `;
+
+  await getMailTransporter().sendMail({
+    from,
+    to: recipients,
+    subject,
+    text,
+    html
+  });
+
+  return { sent: true };
+}
+
+async function safeSendNotificationEmail(payload, label) {
+  return sendNotificationEmail(payload).catch((error) => {
+    console.warn(`Email ${label} non inviata: ${error.message}`);
+    return { sent: false, reason: error.message };
+  });
+}
+
+async function notificationStudents(database, classId) {
+  if (database) {
+    const query = classId ? { classId } : {};
+    const students = await database.collection("students").find(query).toArray();
+    return students.length ? students : demoData.students.filter((student) => !classId || student.classId === classId);
+  }
+
+  return demoData.students.filter((student) => !classId || student.classId === classId);
+}
+
 function normalizeStudents(students, classes) {
   return students.map((student) => {
     const matchingClass = classes.find((item) => item.id === student.classId || item.name === student.className);
@@ -220,6 +425,7 @@ function normalizeStudents(students, classes) {
       average: 0,
       ...student,
       id: student.id || makeId("stu"),
+      email: student.email || "",
       classId: student.classId || matchingClass?.id || slug(student.className || "classe"),
       className: student.className || matchingClass?.name || "Classe"
     };
@@ -277,7 +483,9 @@ app.get("/api/status", async (_req, res) => {
     res.json({
       ok: true,
       database: database ? "connected" : "demo",
-      mode: database ? "MongoDB Atlas" : "Demo locale"
+      mode: database ? "MongoDB Atlas" : "Demo locale",
+      email: isEmailConfigured() ? "configured" : "not-configured",
+      message: database ? null : mongoConnectionError
     });
   } catch (error) {
     res.status(500).json({ ok: false, database: "error", message: error.message });
@@ -316,7 +524,15 @@ app.get("/api/dashboard", async (_req, res) => {
     const students = normalizeStudents(rawStudents, classes);
     const normalizedGrades = grades.map((grade, index) => ({
       ...grade,
-      id: grade.id || grade._id?.toString?.() || `demo-grade-${index}`
+      id: grade.id || grade._id?.toString?.() || `demo-grade-${index}`,
+      term: grade.term || ""
+    }));
+    const fallbackClass = classes[0];
+    const normalizedHomework = homework.map((item, index) => ({
+      ...item,
+      id: item.id || item._id?.toString?.() || `demo-homework-${index}`,
+      classId: item.classId || fallbackClass?.id || "",
+      className: item.className || fallbackClass?.name || ""
     }));
     const normalizedAttendance = attendance.map((item, index) => ({
       ...item,
@@ -326,6 +542,12 @@ app.get("/api/dashboard", async (_req, res) => {
       ...note,
       id: note.id || note._id?.toString?.() || `demo-note-${index}`
     }));
+    const normalizedNotices = notices.map((notice, index) => ({
+      ...notice,
+      id: notice.id || notice._id?.toString?.() || `demo-notice-${index}`,
+      classId: notice.classId || fallbackClass?.id || "",
+      className: notice.className || fallbackClass?.name || ""
+    }));
 
     res.json({
       student: students[0] || demoData.student,
@@ -333,11 +555,11 @@ app.get("/api/dashboard", async (_req, res) => {
       classes,
       students,
       grades: normalizedGrades,
-      homework,
+      homework: normalizedHomework,
       classwork,
       agenda,
       schedules,
-      notices,
+      notices: normalizedNotices,
       attendance: normalizedAttendance,
       notes: normalizedNotes,
       reportCards,
@@ -573,22 +795,28 @@ app.delete("/api/classes/:id", async (req, res) => {
 
 app.post("/api/students", async (req, res) => {
   try {
-    const { name, classId, schoolYear } = req.body;
+    const { name, email, classId, schoolYear } = req.body;
     if (!name || !classId) {
       return res.status(400).json({ message: "Nome e classe sono obbligatori." });
     }
 
     const database = await connectDb();
     let schoolClass = getDemoClass(classId);
+    let classStudents = demoData.students.filter((student) => student.classId === classId);
 
     if (database) {
-      const dbClass = await database.collection("classes").findOne({ id: classId });
+      const [dbClass, dbStudents] = await Promise.all([
+        database.collection("classes").findOne({ id: classId }),
+        database.collection("students").find({ classId }).toArray()
+      ]);
       schoolClass = dbClass || schoolClass;
+      classStudents = dbStudents.length ? dbStudents : classStudents;
     }
 
     const student = {
       id: makeId("stu"),
       name,
+      email: email || "",
       classId,
       className: schoolClass.name,
       schoolYear: schoolYear || schoolClass.schoolYear || "2025/2026",
@@ -614,7 +842,7 @@ app.post("/api/students", async (req, res) => {
 
 app.post("/api/students/:id", async (req, res) => {
   try {
-    const { name, classId, className, average } = req.body;
+    const { name, email, classId, className, average } = req.body;
     if (!name || !className) {
       return res.status(400).json({ message: "Nome e classe sono obbligatori." });
     }
@@ -622,6 +850,7 @@ app.post("/api/students/:id", async (req, res) => {
     const database = await connectDb();
     const updates = {
       name,
+      email: email || "",
       classId,
       className,
       average: Number.parseFloat(average) || 0,
@@ -710,14 +939,26 @@ app.post("/api/attendance", async (req, res) => {
         student[key] = (student[key] || 0) + value;
       });
       syncMainDemoStudent(student);
-      return res.status(201).json(item);
+      const email = type === "Presenza" ? { sent: false, reason: "Presenza senza notifica" } : await safeSendNotificationEmail({
+        subject: `[GabDat] ${type} registrato`,
+        title: `${type} registrato`,
+        body: `${student.name}: ${type} del ${date}.${details ? `\n${details}` : ""}`,
+        students: [student]
+      }, "registro");
+      return res.status(201).json({ ...item, email });
     }
 
     await database.collection("attendance").insertOne(item);
     if (Object.keys(counters).length) {
       await database.collection("students").updateOne({ id: studentId }, { $inc: counters });
     }
-    res.status(201).json(item);
+    const email = type === "Presenza" ? { sent: false, reason: "Presenza senza notifica" } : await safeSendNotificationEmail({
+      subject: `[GabDat] ${type} registrato`,
+      title: `${type} registrato`,
+      body: `${student.name}: ${type} del ${date}.${details ? `\n${details}` : ""}`,
+      students: [student]
+    }, "registro");
+    res.status(201).json({ ...item, email });
   } catch (error) {
     res.status(500).json({ message: "Errore nel salvataggio del registro", details: error.message });
   }
@@ -816,27 +1057,45 @@ app.post("/api/early-exits", async (req, res) => {
 
 app.post("/api/notices", async (req, res) => {
   try {
-    const { title, body, priority } = req.body;
-    if (!title || !body) {
-      return res.status(400).json({ message: "Titolo e testo della comunicazione sono obbligatori." });
+    const { title, body, priority, classId } = req.body;
+    if (!classId || !title || !body) {
+      return res.status(400).json({ message: "Classe, titolo e testo della comunicazione sono obbligatori." });
+    }
+
+    const database = await connectDb();
+    let schoolClass = getDemoClass(classId);
+
+    if (database) {
+      const dbClass = await database.collection("classes").findOne({ id: classId });
+      schoolClass = dbClass || schoolClass;
     }
 
     const notice = {
       id: makeId("notice"),
+      classId,
+      className: schoolClass?.name || "",
       title,
       body,
       priority: priority || "Media",
       createdAt: new Date()
     };
-    const database = await connectDb();
+    const students = await notificationStudents(database, classId);
 
     if (!database) {
       demoData.notices.unshift(notice);
-      return res.status(201).json(notice);
+      const email = await sendNoticeEmail(notice, students).catch((error) => {
+        console.warn(`Email comunicazione non inviata: ${error.message}`);
+        return { sent: false, reason: error.message };
+      });
+      return res.status(201).json({ ...notice, email });
     }
 
     await database.collection("notices").insertOne(notice);
-    res.status(201).json(notice);
+    const email = await sendNoticeEmail(notice, students).catch((error) => {
+      console.warn(`Email comunicazione non inviata: ${error.message}`);
+      return { sent: false, reason: error.message };
+    });
+    res.status(201).json({ ...notice, email });
   } catch (error) {
     res.status(500).json({ message: "Errore nel salvataggio della comunicazione", details: error.message });
   }
@@ -845,18 +1104,27 @@ app.post("/api/notices", async (req, res) => {
 app.put("/api/notices/:id", async (req, res) => {
   try {
     const noticeId = req.params.id;
-    const { title, body, priority } = req.body;
-    if (!title || !body) {
-      return res.status(400).json({ message: "Titolo e testo della comunicazione sono obbligatori." });
+    const { title, body, priority, classId } = req.body;
+    if (!classId || !title || !body) {
+      return res.status(400).json({ message: "Classe, titolo e testo della comunicazione sono obbligatori." });
+    }
+
+    const database = await connectDb();
+    let schoolClass = getDemoClass(classId);
+
+    if (database) {
+      const dbClass = await database.collection("classes").findOne({ id: classId });
+      schoolClass = dbClass || schoolClass;
     }
 
     const updates = {
+      classId,
+      className: schoolClass?.name || "",
       title,
       body,
       priority: priority || "Media",
       updatedAt: new Date()
     };
-    const database = await connectDb();
 
     if (!database) {
       const notice = demoData.notices.find((item) => (item.id || item._id?.toString?.()) === noticeId);
@@ -1104,12 +1372,34 @@ app.post("/api/daily-attendance", async (req, res) => {
     if (!database) {
       demoData.dailyAttendance = demoData.dailyAttendance.filter((item) => !(item.classId === classId && item.date === date));
       demoData.dailyAttendance.unshift(record);
-      return res.status(201).json(record);
+      const email = await Promise.all(normalizedRows
+        .filter((row) => row.status !== "Presente")
+        .map((row) => {
+          const student = students.find((item) => item.id === row.studentId) || getDemoStudent(row.studentId);
+          return safeSendNotificationEmail({
+            subject: `[GabDat] ${row.status} registrato`,
+            title: `${row.status} registrato`,
+            body: `${row.studentName}: ${row.status} del ${date}.${row.details ? `\n${row.details}` : ""}`,
+            students: [student]
+          }, "registro giornaliero");
+        }));
+      return res.status(201).json({ ...record, email });
     }
 
     await database.collection("dailyAttendance").deleteMany({ classId, date });
     await database.collection("dailyAttendance").insertOne(record);
-    res.status(201).json(record);
+    const email = await Promise.all(normalizedRows
+      .filter((row) => row.status !== "Presente")
+      .map((row) => {
+        const student = students.find((item) => item.id === row.studentId) || getDemoStudent(row.studentId);
+        return safeSendNotificationEmail({
+          subject: `[GabDat] ${row.status} registrato`,
+          title: `${row.status} registrato`,
+          body: `${row.studentName}: ${row.status} del ${date}.${row.details ? `\n${row.details}` : ""}`,
+          students: [student]
+        }, "registro giornaliero");
+      }));
+    res.status(201).json({ ...record, email });
   } catch (error) {
     res.status(500).json({ message: "Errore nel salvataggio del registro giornaliero", details: error.message });
   }
@@ -1196,12 +1486,34 @@ app.post("/api/lesson-attendance", async (req, res) => {
     if (!database) {
       demoData.lessonAttendance = demoData.lessonAttendance.filter((item) => !(item.classId === classId && item.scheduleId === scheduleId && item.date === date));
       demoData.lessonAttendance.unshift(record);
-      return res.status(201).json(record);
+      const email = await Promise.all(normalizedRows
+        .filter((row) => row.status !== "Presente")
+        .map((row) => {
+          const student = students.find((item) => item.id === row.studentId) || getDemoStudent(row.studentId);
+          return safeSendNotificationEmail({
+            subject: `[GabDat] ${row.status} in ${schedule.subject}`,
+            title: `${row.status} registrato`,
+            body: `${row.studentName}: ${row.status} del ${date} durante ${schedule.subject}.${row.details ? `\n${row.details}` : ""}`,
+            students: [student]
+          }, "registro lezione");
+        }));
+      return res.status(201).json({ ...record, email });
     }
 
     await database.collection("lessonAttendance").deleteMany({ classId, scheduleId, date });
     await database.collection("lessonAttendance").insertOne(record);
-    res.status(201).json(record);
+    const email = await Promise.all(normalizedRows
+      .filter((row) => row.status !== "Presente")
+      .map((row) => {
+        const student = students.find((item) => item.id === row.studentId) || getDemoStudent(row.studentId);
+        return safeSendNotificationEmail({
+          subject: `[GabDat] ${row.status} in ${schedule.subject}`,
+          title: `${row.status} registrato`,
+          body: `${row.studentName}: ${row.status} del ${date} durante ${schedule.subject}.${row.details ? `\n${row.details}` : ""}`,
+          students: [student]
+        }, "registro lezione");
+      }));
+    res.status(201).json({ ...record, email });
   } catch (error) {
     res.status(500).json({ message: "Errore nel salvataggio del registro della lezione", details: error.message });
   }
@@ -1257,7 +1569,13 @@ app.post("/api/notes", async (req, res) => {
         item.notes = (item.notes || 0) + 1;
         syncMainDemoStudent(item);
       });
-      return res.status(201).json(note);
+      const email = await safeSendNotificationEmail({
+        subject: `[GabDat] Nuova nota`,
+        title: `${note.type}`,
+        body: `${note.teacher}: ${note.body}\nData: ${note.date}`,
+        students: affectedStudents
+      }, "nota");
+      return res.status(201).json({ ...note, email });
     }
 
     await database.collection("notes").insertOne(note);
@@ -1266,7 +1584,14 @@ app.post("/api/notes", async (req, res) => {
     } else {
       await database.collection("students").updateMany({ classId: schoolClass.id }, { $inc: { notes: 1 } });
     }
-    res.status(201).json(note);
+    const affectedStudents = student ? [student] : classStudents;
+    const email = await safeSendNotificationEmail({
+      subject: `[GabDat] Nuova nota`,
+      title: `${note.type}`,
+      body: `${note.teacher}: ${note.body}\nData: ${note.date}`,
+      students: affectedStudents
+    }, "nota");
+    res.status(201).json({ ...note, email });
   } catch (error) {
     res.status(500).json({ message: "Errore nel salvataggio della nota", details: error.message });
   }
@@ -1420,7 +1745,7 @@ app.delete("/api/notes/:id", async (req, res) => {
 
 app.post("/api/grades", async (req, res) => {
   try {
-    const { studentId, subject, value, type, date, teacher, explanation } = req.body;
+    const { studentId, subject, value, type, term, date, teacher, explanation } = req.body;
     if (!studentId || !subject || !value || !type || !date || !teacher) {
       return res.status(400).json({ message: "Alunno, materia, voto, tipo, data e docente sono obbligatori." });
     }
@@ -1446,6 +1771,7 @@ app.post("/api/grades", async (req, res) => {
       subject,
       value: normalizedValue,
       type,
+      term: term || "",
       explanation: explanation || "",
       date,
       teacher,
@@ -1455,12 +1781,20 @@ app.post("/api/grades", async (req, res) => {
     if (!database) {
       demoData.grades.unshift(grade);
       recalculateDemoAverage(studentId);
-      return res.status(201).json(grade);
+      const email = await sendGradeEmail(grade, student).catch((error) => {
+        console.warn(`Email voto non inviata: ${error.message}`);
+        return { sent: false, reason: error.message };
+      });
+      return res.status(201).json({ ...grade, email });
     }
 
     await database.collection("grades").insertOne(grade);
     await recalculateDbAverage(database, studentId);
-    res.status(201).json(grade);
+    const email = await sendGradeEmail(grade, student).catch((error) => {
+      console.warn(`Email voto non inviata: ${error.message}`);
+      return { sent: false, reason: error.message };
+    });
+    res.status(201).json({ ...grade, email });
   } catch (error) {
     res.status(500).json({ message: "Errore nel salvataggio del voto", details: error.message });
   }
@@ -1469,7 +1803,7 @@ app.post("/api/grades", async (req, res) => {
 app.put("/api/grades/:id", async (req, res) => {
   try {
     const gradeId = req.params.id;
-    const { studentId, subject, value, type, date, teacher, explanation } = req.body;
+    const { studentId, subject, value, type, term, date, teacher, explanation } = req.body;
     if (!studentId || !subject || !value || !type || !date || !teacher) {
       return res.status(400).json({ message: "Alunno, materia, voto, tipo, data e docente sono obbligatori." });
     }
@@ -1494,6 +1828,7 @@ app.put("/api/grades/:id", async (req, res) => {
       subject,
       value: normalizedValue,
       type,
+      term: term || "",
       explanation: explanation || "",
       date,
       teacher,
@@ -1618,13 +1953,23 @@ app.post("/api/report-cards", async (req, res) => {
 
 app.post("/api/homework", async (req, res) => {
   try {
-    const { subject, title, dueDate, attachmentName, attachmentType, attachmentData } = req.body;
-    if (!subject || !title || !dueDate) {
-      return res.status(400).json({ message: "Materia, titolo e scadenza sono obbligatori." });
+    const { classId, subject, title, dueDate, attachmentName, attachmentType, attachmentData } = req.body;
+    if (!classId || !subject || !title || !dueDate) {
+      return res.status(400).json({ message: "Classe, materia, titolo e scadenza sono obbligatori." });
+    }
+
+    const database = await connectDb();
+    let schoolClass = getDemoClass(classId);
+
+    if (database) {
+      const dbClass = await database.collection("classes").findOne({ id: classId });
+      schoolClass = dbClass || schoolClass;
     }
 
     const item = {
       id: makeId("homework"),
+      classId,
+      className: schoolClass?.name || "",
       subject,
       title,
       dueDate,
@@ -1634,15 +1979,27 @@ app.post("/api/homework", async (req, res) => {
       attachmentData: attachmentData || "",
       createdAt: new Date()
     };
-    const database = await connectDb();
+    const students = await notificationStudents(database, classId);
 
     if (!database) {
       demoData.homework.unshift(item);
-      return res.status(201).json(item);
+      const email = await safeSendNotificationEmail({
+        subject: `[GabDat] Nuovo compito: ${subject}`,
+        title: "Nuovo compito assegnato",
+        body: `${subject}: ${title}\nScadenza: ${dueDate}`,
+        students
+      }, "compito");
+      return res.status(201).json({ ...item, email });
     }
 
     const result = await database.collection("homework").insertOne(item);
-    res.status(201).json({ ...item, _id: result.insertedId });
+    const email = await safeSendNotificationEmail({
+      subject: `[GabDat] Nuovo compito: ${subject}`,
+      title: "Nuovo compito assegnato",
+      body: `${subject}: ${title}\nScadenza: ${dueDate}`,
+      students
+    }, "compito");
+    res.status(201).json({ ...item, _id: result.insertedId, email });
   } catch (error) {
     res.status(500).json({ message: "Errore nel salvataggio del compito", details: error.message });
   }
@@ -1651,12 +2008,22 @@ app.post("/api/homework", async (req, res) => {
 app.put("/api/homework/:id", async (req, res) => {
   try {
     const homeworkId = req.params.id;
-    const { subject, title, dueDate, attachmentName, attachmentType, attachmentData, keepAttachment } = req.body;
-    if (!subject || !title || !dueDate) {
-      return res.status(400).json({ message: "Materia, titolo e scadenza sono obbligatori." });
+    const { classId, subject, title, dueDate, attachmentName, attachmentType, attachmentData, keepAttachment } = req.body;
+    if (!classId || !subject || !title || !dueDate) {
+      return res.status(400).json({ message: "Classe, materia, titolo e scadenza sono obbligatori." });
+    }
+
+    const database = await connectDb();
+    let schoolClass = getDemoClass(classId);
+
+    if (database) {
+      const dbClass = await database.collection("classes").findOne({ id: classId });
+      schoolClass = dbClass || schoolClass;
     }
 
     const updates = {
+      classId,
+      className: schoolClass?.name || "",
       subject,
       title,
       dueDate,
@@ -1668,8 +2035,6 @@ app.put("/api/homework/:id", async (req, res) => {
       updates.attachmentType = attachmentType || "";
       updates.attachmentData = attachmentData || "";
     }
-
-    const database = await connectDb();
 
     if (!database) {
       const homework = demoData.homework.find((item) => (item.id || item._id?.toString?.()) === homeworkId);
@@ -1747,11 +2112,23 @@ app.post("/api/classwork", async (req, res) => {
 
     if (!database) {
       demoData.classwork.unshift(item);
-      return res.status(201).json(item);
+      const email = await safeSendNotificationEmail({
+        subject: `[GabDat] Svolto in classe: ${subject}`,
+        title: "Nuovo svolto in classe",
+        body: `${subject}: ${body}\nData: ${date}${teacher ? `\nDocente: ${teacher}` : ""}`,
+        students: classStudents
+      }, "svolto in classe");
+      return res.status(201).json({ ...item, email });
     }
 
     await database.collection("classwork").insertOne(item);
-    res.status(201).json(item);
+    const email = await safeSendNotificationEmail({
+      subject: `[GabDat] Svolto in classe: ${subject}`,
+      title: "Nuovo svolto in classe",
+      body: `${subject}: ${body}\nData: ${date}${teacher ? `\nDocente: ${teacher}` : ""}`,
+      students: classStudents
+    }, "svolto in classe");
+    res.status(201).json({ ...item, email });
   } catch (error) {
     res.status(500).json({ message: "Errore nel salvataggio dello svolto in classe", details: error.message });
   }
@@ -1835,6 +2212,7 @@ app.delete("/api/classwork/:id", async (req, res) => {
 });
 
 app.get("*", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 

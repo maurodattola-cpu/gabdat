@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="My Class">
+  <rect width="512" height="512" rx="96" fill="#14513e"/>
+  <path d="M148 118h188c30 0 54 24 54 54v222H181c-37 0-67-30-67-67V152c0-19 15-34 34-34Z" fill="#f7f8f3"/>
+  <path d="M154 118h34v276h-34c-22 0-40-18-40-40V158c0-22 18-40 40-40Z" fill="#c9ef6f"/>
+  <path d="M188 118h151c28 0 51 23 51 51v225H188z" fill="#ffffff"/>
+  <path d="M221 178h122v28H221zM221 236h122v28H221zM221 294h84v28h-84z" fill="#14513e"/>
+  <path d="M188 118v276" fill="none" stroke="#14513e" stroke-width="16"/>
+  <path d="M181 394h209v-42H181c-12 0-22 9-22 21s10 21 22 21Z" fill="#f6c35f"/>
+</svg>
