@@ -1137,14 +1137,14 @@ function fileToDataUrl(file) {
 
 function loginRoleForUsername(username) {
   const normalized = String(username || "").trim().toUpperCase().replace(/[\s_-]+/g, "");
-  if (normalized === "V02") return "studenti";
-  if (normalized === "V01") return "insegnanti";
+  if (["V02", "STUDENTE01"].includes(normalized)) return "studenti";
+  if (["V01", "INSEGNANTE01"].includes(normalized)) return "insegnanti";
   return "";
 }
 
 function isDemoUsername(username) {
   const normalized = String(username || "").trim().toUpperCase().replace(/[\s_-]+/g, "");
-  return normalized === "V01" || normalized === "V02";
+  return ["V01", "V02", "INSEGNANTE01", "STUDENTE01"].includes(normalized);
 }
 
 function isDemoSession() {
