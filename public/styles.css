@@ -939,7 +939,7 @@ select {
   text-transform: uppercase;
 }
 
-.teacher-grades-table td > span {
+.teacher-grades-table td > span:not(.grade-value) {
   display: block;
   margin-top: 4px;
   color: var(--muted);
@@ -947,10 +947,26 @@ select {
 }
 
 .compact-grade {
+  display: grid;
   width: 42px;
   height: 42px;
+  min-width: 42px;
   border-radius: 12px;
   font-size: 1rem;
+  line-height: 1;
+  margin: 0 auto;
+  color: white;
+  place-items: center;
+  text-align: center;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.teacher-grades-table th:nth-child(3),
+.teacher-grades-table td:nth-child(3) {
+  width: 72px;
+  min-width: 72px;
+  text-align: center;
 }
 
 .student-table {
