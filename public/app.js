@@ -1133,8 +1133,8 @@ function fileToDataUrl(file) {
 
 function loginRoleForUsername(username) {
   const normalized = String(username || "").trim().toUpperCase().replace(/[\s_-]+/g, "");
-  if (["V02", "STUDENTE01"].includes(normalized)) return "studenti";
-  if (["V01", "INSEGNANTE01"].includes(normalized)) return "insegnanti";
+  if (normalized === "V02") return "studenti";
+  if (normalized === "V01") return "insegnanti";
   return "";
 }
 
