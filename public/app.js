@@ -13,6 +13,8 @@ const state = {
 };
 
 let deferredInstallPrompt = null;
+const teacherGradePreviewLimit = 5;
+const expandedTeacherGradeSections = new Set();
 
 const appBasePath = (() => {
   const scriptPath = document.currentScript ? new URL(document.currentScript.src).pathname : "/app.js";
@@ -708,6 +710,10 @@ function renderTeacherGrades() {
 
   document.querySelector("#teacherGradesList").innerHTML = grades.length ? termSections.map((section) => {
     const sectionGrades = grades.filter(section.matches);
+    const sectionKey = `${state.selectedClassId || "classe"}:${section.label}`;
+    const isExpanded = expandedTeacherGradeSections.has(sectionKey);
+    const visibleGrades = isExpanded ? sectionGrades : sectionGrades.slice(0, teacherGradePreviewLimit);
+    const hiddenCount = Math.max(sectionGrades.length - visibleGrades.length, 0);
     return `
       <section class="teacher-grades-section">
         <h3>${escapeHtml(section.label)} <span>${sectionGrades.length}</span></h3>
@@ -724,8 +730,13 @@ function renderTeacherGrades() {
                 <th>Azioni</th>
               </tr>
             </thead>
-            <tbody>${gradeRows(sectionGrades)}</tbody>
+            <tbody>${gradeRows(visibleGrades)}</tbody>
           </table>
+          ${sectionGrades.length > teacherGradePreviewLimit ? `
+            <button class="teacher-more-button" type="button" data-grade-section-more="${escapeHtml(sectionKey)}">
+              ${isExpanded ? "Mostra meno" : `Altro (${hiddenCount})`}
+            </button>
+          ` : ""}
         ` : `<article class="notice"><strong>Nessun voto</strong><span>Non ci sono voti in questa sezione.</span></article>`}
       </section>
     `;
@@ -1657,6 +1668,7 @@ document.querySelector("#classTabs").addEventListener("click", async (event) => 
   const button = event.target.closest("button[data-class-id]");
   if (!button) return;
   state.selectedClassId = button.dataset.classId;
+  expandedTeacherGradeSections.clear();
   renderTeacherArea();
 });
 
@@ -1754,6 +1766,18 @@ document.querySelector("#classStudentsTable").addEventListener("click", async (e
 });
 
 document.querySelector("#teacherGradesList").addEventListener("click", async (event) => {
+  const moreButton = event.target.closest("[data-grade-section-more]");
+  if (moreButton) {
+    const sectionKey = moreButton.dataset.gradeSectionMore;
+    if (expandedTeacherGradeSections.has(sectionKey)) {
+      expandedTeacherGradeSections.delete(sectionKey);
+    } else {
+      expandedTeacherGradeSections.add(sectionKey);
+    }
+    renderTeacherGrades();
+    return;
+  }
+
   const toggle = event.target.closest("[data-grade-menu-toggle]");
   if (toggle) {
     const menu = document.querySelector(`[data-grade-menu="${CSS.escape(toggle.dataset.gradeMenuToggle)}"]`);
@@ -1851,6 +1875,7 @@ document.querySelector("#teacherSelect").addEventListener("change", (event) => {
   state.selectedTeacherId = event.currentTarget.value;
   localStorage.setItem("gabdat-teacher-id", state.selectedTeacherId);
   state.selectedClassId = currentTeacherClasses()[0]?.id || "";
+  expandedTeacherGradeSections.clear();
   renderTeacherArea();
 });
 

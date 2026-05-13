@@ -919,6 +919,22 @@ select {
   font-size: 0.88rem;
 }
 
+.teacher-more-button {
+  width: 100%;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 11px 16px;
+  background: rgba(20, 81, 62, 0.08);
+  color: var(--green);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.teacher-more-button:hover {
+  background: rgba(20, 81, 62, 0.14);
+}
+
 .teacher-grades-table {
   width: 100%;
   min-width: 820px;
