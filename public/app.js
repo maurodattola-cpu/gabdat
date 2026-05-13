@@ -318,6 +318,23 @@ function itemMatchesClass(item, schoolClass, classStudentIds = new Set()) {
   return item.classId === schoolClass.id || item.className === schoolClass.name || classStudentIds.has(item.studentId);
 }
 
+function normalizedTerm(value) {
+  const term = String(value || "").trim().toLowerCase();
+  if (term.includes("primo") || term === "1" || term === "1 quadrimestre" || term === "1° quadrimestre") {
+    return "Primo quadrimestre";
+  }
+  if (term.includes("secondo") || term === "2" || term === "2 quadrimestre" || term === "2° quadrimestre") {
+    return "Secondo quadrimestre";
+  }
+  return "";
+}
+
+const termSections = [
+  { label: "Primo quadrimestre", matches: (item) => normalizedTerm(item.term) === "Primo quadrimestre" },
+  { label: "Secondo quadrimestre", matches: (item) => normalizedTerm(item.term) === "Secondo quadrimestre" },
+  { label: "Nessuno", matches: (item) => !normalizedTerm(item.term) }
+];
+
 function homeworkAppliesToStudent(homework, student) {
   if (!homework || !student) return false;
   return homework.classId === student.classId || homework.className === student.className;
@@ -659,13 +676,13 @@ function renderTeacherGrades() {
   const classStudentIds = new Set(currentClassStudents().map((student) => student.id));
   const grades = [...(state.data.grades || [])]
     .filter((grade) => itemMatchesClass(grade, schoolClass, classStudentIds))
-    .sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
+    .sort((a, b) => (
+      String(a.studentName || "").localeCompare(String(b.studentName || ""), "it") ||
+      String(a.subject || "").localeCompare(String(b.subject || ""), "it") ||
+      String(a.type || "").localeCompare(String(b.type || ""), "it") ||
+      String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || ""))
+    ));
 
-  const gradeSections = [
-    { label: "Primo quadrimestre", matches: (grade) => grade.term === "Primo quadrimestre" },
-    { label: "Secondo quadrimestre", matches: (grade) => grade.term === "Secondo quadrimestre" },
-    { label: "Nessuno", matches: (grade) => !grade.term }
-  ];
   const gradeRows = (sectionGrades) => sectionGrades.map((grade) => `
     <tr>
       <td>
@@ -689,11 +706,11 @@ function renderTeacherGrades() {
     </tr>
   `).join("");
 
-  document.querySelector("#teacherGradesList").innerHTML = grades.length ? gradeSections.map((section) => {
+  document.querySelector("#teacherGradesList").innerHTML = grades.length ? termSections.map((section) => {
     const sectionGrades = grades.filter(section.matches);
     return `
       <section class="teacher-grades-section">
-        <h3>${escapeHtml(section.label)}</h3>
+        <h3>${escapeHtml(section.label)} <span>${sectionGrades.length}</span></h3>
         ${sectionGrades.length ? `
           <table class="teacher-grades-table">
             <thead>
@@ -808,13 +825,13 @@ function renderTeacherNotes() {
   const classStudentIds = new Set(currentClassStudents().map((student) => student.id));
   const notes = [...(state.data.notes || [])]
     .filter((note) => itemMatchesClass(note, schoolClass, classStudentIds))
-    .sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
+    .sort((a, b) => (
+      String(a.studentName || a.className || "").localeCompare(String(b.studentName || b.className || ""), "it") ||
+      String(a.type || "").localeCompare(String(b.type || ""), "it") ||
+      String(a.teacher || "").localeCompare(String(b.teacher || ""), "it") ||
+      String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || ""))
+    ));
 
-  const noteSections = [
-    { label: "Primo quadrimestre", matches: (note) => note.term === "Primo quadrimestre" },
-    { label: "Secondo quadrimestre", matches: (note) => note.term === "Secondo quadrimestre" },
-    { label: "Nessuno", matches: (note) => !note.term }
-  ];
   const noteRows = (sectionNotes) => sectionNotes.map((note) => `
     <article class="notice">
       <strong>${escapeHtml(note.studentName || note.className || "Classe")} - ${escapeHtml(note.teacher || "Docente")}</strong>
@@ -827,11 +844,11 @@ function renderTeacherNotes() {
     </article>
   `).join("");
 
-  document.querySelector("#teacherNotesList").innerHTML = notes.length ? noteSections.map((section) => {
+  document.querySelector("#teacherNotesList").innerHTML = notes.length ? termSections.map((section) => {
     const sectionNotes = notes.filter(section.matches);
     return `
       <section class="teacher-notes-section">
-        <h3>${escapeHtml(section.label)}</h3>
+        <h3>${escapeHtml(section.label)} <span>${sectionNotes.length}</span></h3>
         ${sectionNotes.length ? noteRows(sectionNotes) : `<article class="notice"><strong>Nessuna nota</strong><span>Non ci sono note in questa sezione.</span></article>`}
       </section>
     `;
