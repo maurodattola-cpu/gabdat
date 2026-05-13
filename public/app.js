@@ -1079,9 +1079,9 @@ function fileToDataUrl(file) {
 }
 
 function loginRoleForUsername(username) {
-  const normalized = username.trim().toUpperCase();
-  if (normalized === "STUDENTE01") return "studenti";
-  if (normalized === "INSEGNANTE01") return "insegnanti";
+  const normalized = String(username || "").trim().toUpperCase().replace(/[\s_-]+/g, "");
+  if (["V02", "STUDENTE01"].includes(normalized)) return "studenti";
+  if (["V01", "INSEGNANTE01"].includes(normalized)) return "insegnanti";
   return "";
 }
 
@@ -1632,7 +1632,6 @@ document.querySelector("#loginForm").addEventListener("submit", (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   const username = form.elements.username.value.trim();
-  const requestedRole = event.submitter?.value || "studenti";
   const allowedRole = loginRoleForUsername(username);
   const error = document.querySelector("#loginError");
   if (!username) return;
@@ -1640,13 +1639,6 @@ document.querySelector("#loginForm").addEventListener("submit", (event) => {
     error.textContent = "Username non valido.";
     return;
   }
-  if (allowedRole !== requestedRole) {
-    error.textContent = allowedRole === "studenti"
-      ? "Questo username può entrare solo nell'area studenti."
-      : "Questo username può entrare solo nell'area insegnanti.";
-    return;
-  }
-
   error.textContent = "";
   state.username = username.toUpperCase();
   localStorage.setItem("gabdat-username", state.username);
