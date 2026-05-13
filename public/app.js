@@ -810,7 +810,12 @@ function renderTeacherNotes() {
     .filter((note) => itemMatchesClass(note, schoolClass, classStudentIds))
     .sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
 
-  document.querySelector("#teacherNotesList").innerHTML = notes.map((note) => `
+  const noteSections = [
+    { label: "Primo quadrimestre", matches: (note) => note.term === "Primo quadrimestre" },
+    { label: "Secondo quadrimestre", matches: (note) => note.term === "Secondo quadrimestre" },
+    { label: "Nessuno", matches: (note) => !note.term }
+  ];
+  const noteRows = (sectionNotes) => sectionNotes.map((note) => `
     <article class="notice">
       <strong>${escapeHtml(note.studentName || note.className || "Classe")} - ${escapeHtml(note.teacher || "Docente")}</strong>
       <span>${escapeHtml(note.body)}</span>
@@ -820,7 +825,17 @@ function renderTeacherNotes() {
         <button type="button" data-remove-note="${escapeHtml(noteId(note))}">Elimina</button>
       </div>
     </article>
-  `).join("") || `<article class="notice"><strong>Nessuna nota</strong><span>Le note della classe selezionata compariranno qui.</span></article>`;
+  `).join("");
+
+  document.querySelector("#teacherNotesList").innerHTML = notes.length ? noteSections.map((section) => {
+    const sectionNotes = notes.filter(section.matches);
+    return `
+      <section class="teacher-notes-section">
+        <h3>${escapeHtml(section.label)}</h3>
+        ${sectionNotes.length ? noteRows(sectionNotes) : `<article class="notice"><strong>Nessuna nota</strong><span>Non ci sono note in questa sezione.</span></article>`}
+      </section>
+    `;
+  }).join("") : `<article class="notice"><strong>Nessuna nota</strong><span>Le note della classe selezionata compariranno qui.</span></article>`;
 }
 
 function normalizedJustificationType(value) {
@@ -1344,7 +1359,7 @@ function renderNotes(data) {
     <article class="notice">
       <strong>${escapeHtml(note.studentName || note.className || "Classe")} - ${escapeHtml(note.teacher)}</strong>
       <span>${escapeHtml(note.body)}</span>
-      <span class="meta">${escapeHtml(note.type || "Note disciplinari")} - ${escapeHtml(shortDate(note.date))}</span>
+      <span class="meta">${escapeHtml(note.type || "Note disciplinari")} - ${escapeHtml(note.term || "Nessun quadrimestre")} - ${escapeHtml(shortDate(note.date))}</span>
     </article>
   `).join("") : `<article class="notice"><strong>Nessuna nota</strong><span>Non ci sono note registrate.</span></article>`;
 }
@@ -2346,6 +2361,7 @@ document.querySelector("#noteForm").addEventListener("submit", async (event) => 
       classId: target === "class" ? recipientId : "",
       teacher: formData.get("teacher"),
       type: formData.get("type"),
+      term: formData.get("term"),
       date: formData.get("date"),
       body: formData.get("body")
     })
@@ -2369,6 +2385,7 @@ document.querySelector("#teacherNotesList").addEventListener("click", async (eve
     form.elements.recipient.value = note.studentId ? `student:${note.studentId}` : `class:${note.classId}`;
     form.elements.teacher.value = note.teacher || "";
     form.elements.type.value = note.type || "Note disciplinari";
+    form.elements.term.value = note.term || "";
     form.elements.date.value = note.date || today();
     form.elements.body.value = note.body || "";
     form.querySelector("button[type='submit']").textContent = "Salva nota";

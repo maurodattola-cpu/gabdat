@@ -1533,7 +1533,7 @@ app.post("/api/lesson-attendance", async (req, res) => {
 
 app.post("/api/notes", async (req, res) => {
   try {
-    const { studentId, classId, teacher, type, body, date } = req.body;
+    const { studentId, classId, teacher, type, term, body, date } = req.body;
     if ((!studentId && !classId) || !teacher || !body || !date) {
       return res.status(400).json({ message: "Alunno o classe, docente, testo e data sono obbligatori." });
     }
@@ -1569,6 +1569,7 @@ app.post("/api/notes", async (req, res) => {
       className: student?.className || schoolClass?.name || "",
       teacher,
       type: type || "Note disciplinari",
+      term: term || "",
       body,
       date,
       createdAt: new Date()
@@ -1612,7 +1613,7 @@ app.post("/api/notes", async (req, res) => {
 app.put("/api/notes/:id", async (req, res) => {
   try {
     const noteId = req.params.id;
-    const { studentId, classId, teacher, type, body, date } = req.body;
+    const { studentId, classId, teacher, type, term, body, date } = req.body;
     if ((!studentId && !classId) || !teacher || !body || !date) {
       return res.status(400).json({ message: "Alunno o classe, docente, testo e data sono obbligatori." });
     }
@@ -1647,6 +1648,7 @@ app.put("/api/notes/:id", async (req, res) => {
       className: student?.className || schoolClass?.name || "",
       teacher,
       type: type || "Note disciplinari",
+      term: term || "",
       body,
       date,
       updatedAt: new Date()

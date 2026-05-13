@@ -891,7 +891,12 @@ select {
   margin-bottom: 26px;
 }
 
-.teacher-grades-section h3 {
+.teacher-notes-section {
+  margin-bottom: 26px;
+}
+
+.teacher-grades-section h3,
+.teacher-notes-section h3 {
   margin: 0 0 12px;
   color: var(--ink);
   font-size: 1rem;
