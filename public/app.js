@@ -345,7 +345,6 @@ function fillStudentForm(student) {
   }
   form.elements.studentId.value = student.id;
   form.elements.name.value = student.name;
-  form.elements.email.value = student.email || "";
   form.elements.classId.value = student.classId;
   form.elements.average.value = student.average;
 }
@@ -2096,7 +2095,6 @@ document.querySelector("#studentForm").addEventListener("submit", async (event) 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       name: formData.get("name"),
-      email: formData.get("email"),
       classId: formData.get("classId"),
       className: schoolClass?.name || "",
       average: formData.get("average")
