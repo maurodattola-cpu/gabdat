@@ -1144,7 +1144,7 @@ function loginRoleForUsername(username) {
 
 function isDemoUsername(username) {
   const normalized = String(username || "").trim().toUpperCase().replace(/[\s_-]+/g, "");
-  return ["V01", "V02", "INSEGNANTE01", "STUDENTE01"].includes(normalized);
+  return ["V01", "V02"].includes(normalized);
 }
 
 function isDemoSession() {
