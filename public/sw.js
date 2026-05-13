@@ -1,11 +1,11 @@
-const CACHE_NAME = "my-class-v41";
+const CACHE_NAME = "my-class-v42";
 const APP_ROOT = new URL("./", self.registration.scope).pathname;
 const APP_SHELL = [
   APP_ROOT,
-  `${APP_ROOT}styles.css?v=41`,
-  `${APP_ROOT}app.js?v=41`,
-  `${APP_ROOT}manifest.webmanifest?v=41`,
-  `${APP_ROOT}icon.svg?v=41`
+  `${APP_ROOT}styles.css?v=42`,
+  `${APP_ROOT}app.js?v=42`,
+  `${APP_ROOT}manifest.webmanifest?v=42`,
+  `${APP_ROOT}icon.svg?v=42`
 ];
 
 self.addEventListener("install", (event) => {

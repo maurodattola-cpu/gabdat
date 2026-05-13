@@ -276,6 +276,10 @@ async function staticApiRequest(url, options = {}) {
 }
 
 async function fetchJson(url, options) {
+  if (url.startsWith("/api/") && isDemoSession()) {
+    return staticApiRequest(url, options);
+  }
+
   try {
     const response = await fetch(url, options);
     if (!response.ok) {
@@ -1138,6 +1142,15 @@ function loginRoleForUsername(username) {
   return "";
 }
 
+function isDemoUsername(username) {
+  const normalized = String(username || "").trim().toUpperCase().replace(/[\s_-]+/g, "");
+  return normalized === "V01" || normalized === "V02";
+}
+
+function isDemoSession() {
+  return isDemoUsername(state.username);
+}
+
 function renderSessionStatus() {
   const status = document.querySelector("#sessionStatus");
   const logoutButton = document.querySelector("#logoutButton");
@@ -1148,7 +1161,7 @@ function renderSessionStatus() {
     return;
   }
 
-  status.textContent = `${state.username} - area ${role}`;
+  status.textContent = `${state.username} - demo ${role}`;
   logoutButton.classList.remove("hidden");
 }
 
@@ -1682,7 +1695,7 @@ document.querySelectorAll("[data-open-panel]").forEach((button) => {
   });
 });
 
-document.querySelector("#loginForm").addEventListener("submit", (event) => {
+document.querySelector("#loginForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   const username = form.elements.username.value.trim();
@@ -1697,6 +1710,7 @@ document.querySelector("#loginForm").addEventListener("submit", (event) => {
   state.username = username.toUpperCase();
   localStorage.setItem("gabdat-username", state.username);
   window.history.pushState({}, "", routeUrl(`/${allowedRole}`));
+  await loadDashboard();
   showActiveArea();
 });
 
