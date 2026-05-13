@@ -661,47 +661,58 @@ function renderTeacherGrades() {
     .filter((grade) => itemMatchesClass(grade, schoolClass, classStudentIds))
     .sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
 
-  document.querySelector("#teacherGradesList").innerHTML = grades.length ? `
-    <table class="teacher-grades-table">
-      <thead>
-        <tr>
-          <th>Alunno</th>
-          <th>Materia</th>
-          <th>Voto</th>
-          <th>Tipo</th>
-          <th>Quadrimestre</th>
-          <th>Data</th>
-          <th>Docente</th>
-          <th>Azioni</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${grades.map((grade) => `
-          <tr>
-            <td>
-              <strong>${escapeHtml(grade.studentName || "Studente")}</strong>
-              ${grade.explanation ? `<span>${escapeHtml(grade.explanation)}</span>` : ""}
-            </td>
-            <td>${escapeHtml(grade.subject)}</td>
-            <td><span class="${gradeValueClass(grade.value)} compact-grade">${escapeHtml(grade.value)}</span></td>
-            <td>${escapeHtml(grade.type)}</td>
-            <td>${escapeHtml(grade.term || "Nessuno")}</td>
-            <td>${escapeHtml(shortDate(grade.date))}</td>
-            <td>${escapeHtml(grade.teacher || "Docente")}</td>
-            <td>
-              <div class="row-actions">
-                <button class="dots-button" type="button" aria-label="Azioni voto" data-grade-menu-toggle="${escapeHtml(grade.id)}">...</button>
-                <div class="row-menu" data-grade-menu="${escapeHtml(grade.id)}">
-                  <button class="neutral-menu-action" type="button" data-edit-grade="${escapeHtml(grade.id)}">Modifica voto</button>
-                  <button type="button" data-remove-grade="${escapeHtml(grade.id)}">Elimina voto</button>
-                </div>
-              </div>
-            </td>
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>
-  ` : `<article class="notice"><strong>Nessun voto</strong><span>I voti della classe selezionata compariranno qui.</span></article>`;
+  const gradeSections = [
+    { label: "Primo quadrimestre", matches: (grade) => grade.term === "Primo quadrimestre" },
+    { label: "Secondo quadrimestre", matches: (grade) => grade.term === "Secondo quadrimestre" },
+    { label: "Nessuno", matches: (grade) => !grade.term }
+  ];
+  const gradeRows = (sectionGrades) => sectionGrades.map((grade) => `
+    <tr>
+      <td>
+        <strong>${escapeHtml(grade.studentName || "Studente")}</strong>
+        ${grade.explanation ? `<span>${escapeHtml(grade.explanation)}</span>` : ""}
+      </td>
+      <td>${escapeHtml(grade.subject)}</td>
+      <td><span class="${gradeValueClass(grade.value)} compact-grade">${escapeHtml(grade.value)}</span></td>
+      <td>${escapeHtml(grade.type)}</td>
+      <td>${escapeHtml(shortDate(grade.date))}</td>
+      <td>${escapeHtml(grade.teacher || "Docente")}</td>
+      <td>
+        <div class="row-actions">
+          <button class="dots-button" type="button" aria-label="Azioni voto" data-grade-menu-toggle="${escapeHtml(grade.id)}">...</button>
+          <div class="row-menu" data-grade-menu="${escapeHtml(grade.id)}">
+            <button class="neutral-menu-action" type="button" data-edit-grade="${escapeHtml(grade.id)}">Modifica voto</button>
+            <button type="button" data-remove-grade="${escapeHtml(grade.id)}">Elimina voto</button>
+          </div>
+        </div>
+      </td>
+    </tr>
+  `).join("");
+
+  document.querySelector("#teacherGradesList").innerHTML = grades.length ? gradeSections.map((section) => {
+    const sectionGrades = grades.filter(section.matches);
+    return `
+      <section class="teacher-grades-section">
+        <h3>${escapeHtml(section.label)}</h3>
+        ${sectionGrades.length ? `
+          <table class="teacher-grades-table">
+            <thead>
+              <tr>
+                <th>Alunno</th>
+                <th>Materia</th>
+                <th>Voto</th>
+                <th>Tipo</th>
+                <th>Data</th>
+                <th>Docente</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody>${gradeRows(sectionGrades)}</tbody>
+          </table>
+        ` : `<article class="notice"><strong>Nessun voto</strong><span>Non ci sono voti in questa sezione.</span></article>`}
+      </section>
+    `;
+  }).join("") : `<article class="notice"><strong>Nessun voto</strong><span>I voti della classe selezionata compariranno qui.</span></article>`;
 }
 
 function renderTeacherEarlyExits() {

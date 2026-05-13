@@ -887,9 +887,19 @@ select {
   overflow-x: auto;
 }
 
+.teacher-grades-section {
+  margin-bottom: 26px;
+}
+
+.teacher-grades-section h3 {
+  margin: 0 0 12px;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
 .teacher-grades-table {
   width: 100%;
-  min-width: 900px;
+  min-width: 820px;
   border-collapse: collapse;
 }
 
